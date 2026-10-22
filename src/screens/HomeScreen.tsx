@@ -15,6 +15,7 @@ import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
+import CattleIcon from '../components/CattleIcon';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
@@ -212,7 +213,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
               >
                 <View style={styles.rowIcon}>
-                  <Ionicons name={isCow ? 'paw' : 'cube-outline'} size={16} color={ios.accent} />
+                  {isCow ? <CattleIcon size={18} color={ios.accent} /> : <Ionicons name="cube-outline" size={16} color={ios.accent} />}
                 </View>
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowId}>

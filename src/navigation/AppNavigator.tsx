@@ -73,7 +73,7 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} documentTitle={{ formatter: () => 'PondiFarm' }}>
       {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
           como nas apps nativas do iOS. */}
       <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>

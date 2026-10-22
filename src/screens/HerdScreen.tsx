@@ -17,6 +17,7 @@ import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
 import ScreenBackground from '../components/ScreenBackground';
+import CattleIcon from '../components/CattleIcon';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -225,7 +226,7 @@ export default function HerdScreen() {
 
       {sections.length === 0 && cloudFiltered.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="paw-outline" size={36} color={ios.tertiaryLabel} />
+          <CattleIcon size={38} color={ios.tertiaryLabel} />
           <Text style={styles.emptyTitle}>
             {query ? 'No matches' : 'No scans yet'}
           </Text>
@@ -260,11 +261,9 @@ export default function HerdScreen() {
                       styles.rowIcon,
                       { backgroundColor: isCow ? ios.accentLight : ios.segmentFill },
                     ]}>
-                      <Ionicons
-                        name={isCow ? 'paw' : 'cube-outline'}
-                        size={16}
-                        color={isCow ? ios.accent : ios.secondaryLabel}
-                      />
+                      {isCow
+                        ? <CattleIcon size={18} color={ios.accent} />
+                        : <Ionicons name="cube-outline" size={16} color={ios.secondaryLabel} />}
                     </View>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowId}>
