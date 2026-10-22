@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
-import { ThemeProvider } from './src/lib/ThemeContext';
+import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
+import { applyThemeAttr } from './src/web/themeScan';
 import { AuthProvider, useAuth } from './src/lib/AuthContext';
 import { RootNavigator } from './src/navigation/AppNavigator';
 import OrganizationGateScreen from './src/screens/OrganizationGateScreen';
@@ -20,18 +21,20 @@ function useNarrow() {
 
 function WebRoot() {
   const { token, user, loading } = useAuth();
+  const { mode: themeMode } = useTheme();
+  useEffect(() => { applyThemeAttr(themeMode); }, [themeMode]);
   const narrow = useNarrow();
   const [mode, setMode] = useState<DeviceMode | null>(null);
   useEffect(() => { loadDeviceMode(window.innerWidth).then(setMode); }, []);
 
   if (loading || mode === null) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F4F6' }}><ActivityIndicator color="#2D7D46" /></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ground)' as any }}><ActivityIndicator color="#2D7D46" /></View>;
   }
   // Num ecrã estreito (um telemóvel de verdade) a app abre como no iPhone, sem moldura.
   if (narrow) return <View style={{ flex: 1 }}><RootNavigator /></View>;
   if (!token) return <DesktopLogin />;
   if (user && user.membershipStatus === 'none') {
-    return <View style={{ flex: 1, backgroundColor: '#F2F4F6', alignItems: 'center' }}><View style={{ flex: 1, width: '100%', maxWidth: 560 }}><OrganizationGateScreen /></View></View>;
+    return <View style={{ flex: 1, backgroundColor: 'var(--ground)' as any, alignItems: 'center' }}><View style={{ flex: 1, width: '100%', maxWidth: 560 }}><OrganizationGateScreen /></View></View>;
   }
   return <DeviceStage initial={mode} />;
 }

@@ -25,7 +25,7 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-function Confirm({ title, body, action, onCancel, onConfirm }: { title: string; body: string; action: string; onCancel: () => void; onConfirm: () => void }) {
+export function Confirm({ title, body, action, onCancel, onConfirm, tone = 'danger' }: { title: string; body: string; action: string; onCancel: () => void; onConfirm: () => void; tone?: 'danger' | 'go' }) {
   const ok = useRef<HTMLButtonElement>(null);
   useEffect(() => { ok.current?.focus(); const k = (e: KeyboardEvent) => e.key === 'Escape' && onCancel(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onCancel]);
   return (
@@ -33,7 +33,7 @@ function Confirm({ title, body, action, onCancel, onConfirm }: { title: string; 
       <div className="pf-dlg" role="dialog" aria-modal="true" aria-labelledby="pf-set-t" onClick={(e) => e.stopPropagation()}>
         <h3 id="pf-set-t" className="w8">{title}</h3><p>{body}</p>
         <div className="acts"><button className="pf-btn l w7" onClick={onCancel}>Cancel</button>
-          <button ref={ok} className="pf-btn r w7" onClick={onConfirm}>{action}</button></div>
+          <button ref={ok} className={`pf-btn ${tone === 'go' ? 'g' : 'r'} w7`} onClick={onConfirm}>{action}</button></div>
       </div>
     </div>
   );

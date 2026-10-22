@@ -75,7 +75,7 @@ export default function DeviceStage({ initial }: { initial: DeviceMode }) {
         transform: tilt ? `rotateY(${tilt}deg) rotateX(${tilt * 0.35}deg)` : undefined }}>
         <div style={{ position: 'absolute', inset: 0, borderRadius: r + bez, background: '#0E1620', opacity: bez > 0.2 ? 1 : 0,
           boxShadow: `0 ${46 * k}px ${90 * k}px rgba(27,58,87,${0.3 * k})` }} />
-        <div style={{ position: 'absolute', left: bez, top: bez, width: w, height: h, borderRadius: r, overflow: 'hidden', background: p > 0 ? '#F2F4F6' : 'transparent' }}>
+        <div style={{ position: 'absolute', left: bez, top: bez, width: w, height: h, borderRadius: r, overflow: 'hidden', background: p > 0 ? 'var(--ground)' : 'transparent' }}>
           {showDesktop && (
             <div style={{ position: 'absolute', left: 0, top: 0, width: vp.w, height: vp.h, transformOrigin: '0 0',
               transform: p > 0 ? `scale(${w / vp.w}, ${h / vp.h})` : undefined, opacity: 1 - out, filter: out > 0 ? `blur(${out * 10}px)` : undefined,

@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { Asset } from 'expo-asset';
-import { NavigationContainer, NavigationIndependentTree, DefaultTheme } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../lib/AuthContext';
 import { listPeople } from '../lib/orgs';
 import { initials } from '../lib/profile';
-import ProfileScreen from '../screens/ProfileScreen';
-import AnimalDetailScreen from '../screens/AnimalDetailScreen';
 import AnalyticsPage from './AnalyticsPage';
 import SettingsPage from './SettingsPage';
+import ProfilePage from './ProfilePage';
 import HomePage from './HomePage';
 import HerdPage from './HerdPage';
 import { useHerd } from './herd';
@@ -17,28 +13,6 @@ import { ChartIcon, DesktopIcon, GearIcon, HerdIcon, HomeIcon } from './icons';
 
 const ICON = Asset.fromModule(require('../../assets/icon.png')).uri;
 export type Page = 'home' | 'herd' | 'analytics' | 'settings' | 'profile';
-
-// Perfil (e a ficha do animal a partir dele): o próprio ecrã da app, numa coluna, com navegação própria.
-const Stack = createNativeStackNavigator();
-// A linha «Settings» do Perfil abre a página de Definições do computador, não a do telemóvel.
-function GoTo({ go }: { go: () => void }) { useEffect(() => { go(); }, [go]); return null; }
-function Embedded({ initial, onSettings }: { initial: 'Profile'; onSettings: () => void }) {
-  return (
-    <div className="pf-embed">
-      <NavigationIndependentTree>
-        <NavigationContainer theme={{ ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } }} documentTitle={{ formatter: () => 'PondiFarm' }}>
-          <View style={{ flex: 1, minHeight: '100vh' as any }}>
-            <Stack.Navigator initialRouteName={initial} screenOptions={{ headerShown: false, animation: 'fade' }}>
-              <Stack.Screen name="Profile" component={ProfileScreen} />
-              <Stack.Screen name="Settings">{() => <GoTo go={onSettings} />}</Stack.Screen>
-              <Stack.Screen name="AnimalDetail" component={AnimalDetailScreen} />
-            </Stack.Navigator>
-          </View>
-        </NavigationContainer>
-      </NavigationIndependentTree>
-    </div>
-  );
-}
 
 export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestMobile: () => void; shellRef?: React.Ref<HTMLDivElement> }) {
   const { user } = useAuth();
@@ -76,7 +50,7 @@ export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestM
           {page === 'herd' && <HerdPage herd={herd} selected={selected} setSelected={setSelected} />}
           {page === 'analytics' && <AnalyticsPage herd={herd} openAnimal={openAnimal} />}
           {page === 'settings' && <SettingsPage />}
-          {page === 'profile' && <Embedded initial="Profile" onSettings={goSettings} />}
+          {page === 'profile' && <ProfilePage goSettings={goSettings} />}
         </div>
       </main>
     </div>
