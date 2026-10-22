@@ -23,4 +23,8 @@ Set `EXPO_PUBLIC_API_URL` (see `.env.example`) to point the build at a demo or l
 - `src/web/`: desktop shell, sign-in page, device switch and transition.
 - `modules/lidar-scanner/index.web.ts`: web stand-in for the native LiDAR module.
 
+## License
+
+Proprietary. The source is public for transparency only; copying, modifying, redistributing or using it, including the weight model, is not allowed without written permission from Euro Union Consult. See [LICENSE](LICENSE).
+
 © Euro Union Consult, Lda.
