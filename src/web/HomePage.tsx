@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { fmtW, type Herd } from './herd';
-import { Breeds, Histogram, Kpi, Ring, mean, weights } from './charts';
+import { Breeds, Histogram, Kpi, Ring, SkelChart, SkelKpis, SkelRows, mean, weights } from './charts';
 import { ChartIcon, CloudIcon, PhoneIcon } from './icons';
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 19 ? 'Good afternoon' : 'Good evening'; };
@@ -17,6 +17,7 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
   const first = (user?.name ?? '').trim().split(/\s+/)[0];
   const synced = herd.pending === 0;
   const latest = all.slice(0, 5);
+  const loading = herd.animals === null;
 
   return (
     <div className="pf-page">
@@ -29,16 +30,18 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
         </div>
       </div>
 
+      {loading ? <SkelKpis /> : (
       <div className="pf-kpis">
         <Kpi label="Animals" value={herd.animals === null ? null : all.length} note={`${ws.length} with an estimated weight`} />
         <Kpi label="Mean weight" value={avg} unit="kg" note={ws.length ? `from ${ws.length} estimates` : 'no estimates yet'} />
         <Kpi label="Weight range" value={null} text={lo !== null ? `${lo}–${hi}` : '—'} unit={lo !== null ? 'kg' : undefined} note="lightest to heaviest" />
         <Kpi label="Team" value={members} note={members === 1 ? 'member in the organization' : 'members in the organization'} />
       </div>
+      )}
 
       <div className="pf-row">
         <div style={{ flex: 1.45, minWidth: 0 }}><div className="pf-sect w6">Herd by weight</div>
-          <div className="pf-card pf-pad"><Histogram ws={ws} avg={avg} height={190} /></div></div>
+          <div className="pf-card pf-pad">{loading ? <SkelChart /> : <Histogram ws={ws} avg={avg} height={190} />}</div></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="pf-secthead"><div className="pf-sect w6">Latest records</div><button className="pf-link w6" onClick={goHerd}>View all</button></div>
           <div className="pf-card pf-list">
@@ -48,13 +51,13 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
                 <div className="w w8">{w ?? '—'}{w !== null && <span className="w6">kg</span>}</div>
               </button>); })}
             {herd.animals !== null && !all.length && <div className="pf-empty">No animals yet. Records from your team appear here as they sync.</div>}
-            {herd.animals === null && <div className="pf-empty">Loading the herd…</div>}
+            {loading && <SkelRows n={5} />}
           </div></div>
       </div>
 
       <div className="pf-row">
         <div style={{ flex: 1.45, minWidth: 0 }}><div className="pf-sect w6">Breeds</div>
-          <div className="pf-card pf-pad"><Breeds animals={all} limit={4} /></div></div>
+          <div className="pf-card pf-pad">{loading ? <SkelRows n={3} right={false} /> : <Breeds animals={all} limit={4} />}</div></div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}><div className="pf-sect w6">Sync</div>
           <div className="pf-card pf-sync">
             <Ring pct={synced ? 100 : 0} size={72} label={synced ? 'All records synced' : 'Records waiting to sync'} />

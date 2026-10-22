@@ -7,13 +7,15 @@ import {
   approveRequest, cancelMyRequest, leaveOrganization, listPendingRequests, listPeople, rejectRequest,
   removePerson, transferLeadership, type OrgPerson, type PendingJoinRequest,
 } from '../lib/orgs';
-import { useCountUp } from './charts';
+import { SkelRows, useCountUp } from './charts';
 import { Confirm } from './SettingsPage';
 import { switchThemeWithScan } from './themeScan';
 import { Chevron, DotsIcon, GearIcon, MoonIcon, PenIcon, SunIcon } from './icons';
 
 // Perfil da versão de computador: as mesmas ações do ecrã da app (nome, organização,
 // pedidos, membros, sair), com menus e confirmações em vez dos alertas do telemóvel.
+/** Avisa o menu lateral de que o nome mudou. */
+export const PROFILE_SAVED = 'pf-profile-saved';
 type Ask = { title: string; body: string; action: string; tone?: 'danger' | 'go'; run: () => void };
 const ini = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 const since = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
@@ -100,7 +102,7 @@ export default function ProfilePage({ goSettings }: { goSettings: () => void }) 
     e.preventDefault();
     const p = { firstName: first.trim(), lastName: last.trim() };
     if (!p.firstName) return;
-    await saveProfile(user?.id, p); setProfile(p); setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 1800);
+    await saveProfile(user?.id, p); setProfile(p); window.dispatchEvent(new Event(PROFILE_SAVED)); setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 1800);
   };
   const orgName = (isPending ? user?.pendingOrganizationName : user?.organizationName) || '—';
 
@@ -164,7 +166,7 @@ export default function ProfilePage({ goSettings }: { goSettings: () => void }) 
       {orgId && (<>
         <div className="pf-sect w6">Members · {people?.length ?? '…'}</div>
         <div className="pf-card pf-people">
-          {people === null && <div className="pf-empty" style={{ padding: '22px 24px' }}>Loading members…</div>}
+          {people === null && <SkelRows n={3} />}
           {(people ?? []).map((p, i) => {
             const me = p.userId === user?.id;
             return (

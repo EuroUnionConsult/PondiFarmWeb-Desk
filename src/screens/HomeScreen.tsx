@@ -240,7 +240,36 @@ export default function HomeScreen() {
         </FadeInView>
       )}
 
-      {today.length === 0 && (
+      {/* No browser não há scans locais: mostra os últimos animais da nuvem, como no computador. */}
+      {today.length === 0 && Platform.OS === 'web' && cloud.length > 0 && (
+        <FadeInView index={1} style={styles.group}>
+          <Text style={styles.groupHeader}>Latest records</Text>
+          <View style={styles.card}>
+            {cloud.slice(0, 5).map((c, i, arr) => (
+              <PressableScale
+                key={c.id}
+                style={[styles.row, i < arr.length - 1 && styles.rowDivider]}
+                onPress={() => nav.navigate('AnimalDetail', { animal: c })}
+                scaleTo={0.985}
+                accessibilityRole="button"
+              >
+                <View style={styles.rowIcon}><CattleIcon size={18} color={ios.accent} /></View>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowId}>{c.name}</Text>
+                  <Text style={styles.rowMeta}>{[c.breed, c.tagCode].filter(Boolean).join(' · ')}</Text>
+                </View>
+                <View style={styles.rowMetric}>
+                  <Text style={styles.rowMetricValue}>{c.weightKg != null ? Math.round(c.weightKg) : '—'}</Text>
+                  <Text style={styles.rowMetricUnit}>kg</Text>
+                </View>
+                <Text style={styles.rowChevron}>›</Text>
+              </PressableScale>
+            ))}
+          </View>
+        </FadeInView>
+      )}
+
+      {today.length === 0 && !(Platform.OS === 'web' && cloud.length > 0) && (
         <View style={styles.empty}>
           <Ionicons name="layers-outline" size={36} color={ios.tertiaryLabel} />
           <Text style={styles.emptyTitle}>Nothing logged yet</Text>

@@ -119,7 +119,7 @@ export default function SettingsPage() {
   return (
     <div className="pf-page">
       <div className="pf-top"><div><h1 className="w8">Settings</h1><div className="pf-sub">Preferences for PondiFarm on this computer</div></div></div>
-      <div className="pf-row pf-settings">
+      <div className="pf-row pf-split pf-settings">
         <nav className="pf-secnav" role="tablist" aria-orientation="vertical" aria-label="Settings sections" onKeyDown={onKey} style={{ ['--i' as any]: i }}>
           <span className="thumb" aria-hidden="true" />
           {SECTIONS.map(({ id, label, hint, Icon }) => (

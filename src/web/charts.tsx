@@ -119,3 +119,36 @@ export function topBreeds(animals: CloudAnimal[], n = 3) {
   animals.forEach((a) => a.breed && c.set(a.breed, (c.get(a.breed) ?? 0) + 1));
   return [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([b]) => b);
 }
+
+// ---------- esqueletos de carregamento (a forma do conteúdo, a pulsar) ----------
+export const Skel = ({ w = '100%', h = 14, r = 8, style }: { w?: number | string; h?: number; r?: number; style?: React.CSSProperties }) =>
+  <span className="pf-skel" style={{ width: w, height: h, borderRadius: r, ...style }} aria-hidden="true" />;
+
+export function SkelKpis({ n = 4 }: { n?: number }) {
+  return (
+    <div className="pf-kpis" aria-busy="true" aria-label="Loading">
+      {Array.from({ length: n }, (_, i) => (
+        <div key={i} className="pf-card pf-kpi"><Skel w={90} h={13} /><Skel w={130} h={38} style={{ marginTop: 12 }} /><Skel w={150} h={12} style={{ marginTop: 12 }} /></div>))}
+    </div>
+  );
+}
+
+export function SkelChart({ h = 190 }: { h?: number }) {
+  const bars = [35, 52, 28, 70, 88, 64, 95, 58, 76, 40, 30];
+  return (
+    <div aria-hidden="true"><Skel w={260} h={12} />
+      <div className="pf-skelbars" style={{ height: h }}>{bars.map((v, i) => <Skel key={i} h={v} r={6} style={{ height: `${v}%`, animationDelay: `${i * 60}ms` }} />)}</div>
+    </div>
+  );
+}
+
+export function SkelRows({ n = 5, right = true }: { n?: number; right?: boolean }) {
+  return (
+    <div aria-hidden="true">
+      {Array.from({ length: n }, (_, i) => (
+        <div key={i} className="pf-skelrow"><Skel w={36} h={36} r={18} />
+          <div style={{ flex: 1 }}><Skel w={`${45 - (i % 3) * 8}%`} h={13} /><Skel w={`${30 + (i % 2) * 10}%`} h={11} style={{ marginTop: 7 }} /></div>
+          {right && <Skel w={54} h={18} />}</div>))}
+    </div>
+  );
+}

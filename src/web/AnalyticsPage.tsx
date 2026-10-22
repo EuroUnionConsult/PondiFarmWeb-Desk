@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { CloudAnimal } from '../lib/api';
 import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { fmtW, type Herd } from './herd';
-import { Breeds, Histogram, Kpi, Pills, Ring, mean, median, pos, topBreeds, weights } from './charts';
+import { Breeds, Histogram, Kpi, Pills, Ring, SkelChart, SkelKpis, SkelRows, mean, median, pos, topBreeds, weights } from './charts';
 
 function Coverage({ withW, total }: { withW: number; total: number }) {
   const pct = total ? Math.round((withW / total) * 100) : 0;
@@ -58,18 +58,19 @@ export default function AnalyticsPage({ herd, openAnimal }: { herd: Herd; openAn
           options={[{ id: 'all', label: 'All breeds' }, ...breeds.map((x) => ({ id: x, label: x }))]} />}
       </div>
 
+      {herd.animals === null ? <SkelKpis /> : (
       <div className="pf-kpis" key={breed}>
         <Kpi label="Mean weight" value={avg} unit="kg" note={ws.length ? `from ${ws.length} estimates` : 'no estimates yet'} />
         <Kpi label="Median weight" value={med} unit="kg" note="half the herd is above this" />
         <Kpi label="Heaviest" value={ws.length ? Math.max(...ws) : null} unit="kg" note={ws.length ? `lightest ${Math.min(...ws)} kg` : '—'} />
         <Coverage withW={ws.length} total={animals.length} />
-      </div>
+      </div>)}
 
       <div className="pf-row">
         <div style={{ flex: 1.45, minWidth: 0 }}><div className="pf-sect w6">Weight distribution</div>
-          <div className="pf-card pf-pad"><Histogram key={breed} ws={ws} avg={avg} /></div></div>
+          <div className="pf-card pf-pad">{herd.animals === null ? <SkelChart h={210} /> : <Histogram key={breed} ws={ws} avg={avg} />}</div></div>
         <div style={{ flex: 1, minWidth: 0 }}><div className="pf-sect w6">By breed</div>
-          <div className="pf-card pf-pad"><Breeds key={breed} animals={animals} /></div></div>
+          <div className="pf-card pf-pad">{herd.animals === null ? <SkelRows n={4} right={false} /> : <Breeds key={breed} animals={animals} />}</div></div>
       </div>
 
       <div className="pf-row">
@@ -86,7 +87,7 @@ export default function AnalyticsPage({ herd, openAnimal }: { herd: Herd; openAn
                 <div className="t"><span className="w6" style={{ display: 'inline', fontSize: 15, color: 'var(--label)', margin: 0 }}>{a.name}</span><span>{[a.breed, a.tagCode].filter(Boolean).join(' · ')}</span></div>
                 <div className="w w8">{fmtW(a.weightKg)}<span className="w6">kg</span></div>
               </button>))}
-            {!heaviest.length && <div className="pf-empty">No estimated weights yet.</div>}
+            {herd.animals === null ? <SkelRows n={5} /> : !heaviest.length && <div className="pf-empty">No estimated weights yet.</div>}
           </div></div>
       </div>
       <p className="pf-foot">Weights are estimated by the PondiFarm model ({WEIGHT_MODEL_VERSION}). They are experimental and not validated against a scale.</p>

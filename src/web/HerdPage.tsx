@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { CloudAnimal } from '../lib/api';
+import { fetchAnimalScans, type CloudAnimal, type ScanPoint } from '../lib/api';
 import { fmtW, type Herd } from './herd';
-import { Pills, mean, pos, topBreeds, useCountUp, weights } from './charts';
+import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
 import { CloudIcon, SearchIcon } from './icons';
 
 type Sort = 'name' | 'heavy' | 'light';
@@ -19,6 +19,51 @@ function Compare({ label, value, all, unit }: { label: string; value: number | n
       <div className="track"><span className="avg" style={{ left: `${((avg - lo) / span) * 100}%` }} title={`Herd mean ${avg} ${unit}`} />
         {at !== null && <span className="dot" style={{ left: `${at}%` }} />}</div>
       <div className="ax"><span>{lo}</span><span>mean {avg}</span><span>{hi}</span></div>
+    </div>
+  );
+}
+
+// Histórico já pedido nesta sessão: voltar a um animal não repete o pedido.
+const historyCache = new Map<string, ScanPoint[]>();
+const fmtDate = (t: number) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Evolução do peso estimado ao longo dos scans do animal. */
+function WeightHistory({ id }: { id: string }) {
+  const [pts, setPts] = useState<ScanPoint[] | null>(historyCache.get(id) ?? null);
+  const [failed, setFailed] = useState(false);
+  const [hover, setHover] = useState<number | null>(null);
+  useEffect(() => {
+    if (historyCache.has(id)) return;
+    let alive = true;
+    fetchAnimalScans(id).then((p) => { historyCache.set(id, p); if (alive) setPts(p); }).catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [id]);
+  if (failed) return <div className="pf-sub">The scan history could not be loaded.</div>;
+  if (pts === null) return <Skel h={130} r={12} />;
+  const ws = pts.filter((p): p is ScanPoint & { weightKg: number } => p.weightKg !== null && p.weightKg > 0);
+  if (ws.length < 2) return <div className="pf-sub">{ws.length === 1 ? `One scan so far (${fmtDate(ws[0].at)}). The trend appears after the next scan.` : 'No scans with a weight yet.'}</div>;
+  const W = 340, H = 130, PX = 10, PY = 16;
+  const t0 = ws[0].at, t1 = ws[ws.length - 1].at, lo = Math.min(...ws.map((p) => p.weightKg)), hi = Math.max(...ws.map((p) => p.weightKg));
+  const x = (t: number) => PX + ((t - t0) / (t1 - t0 || 1)) * (W - 2 * PX), y = (w: number) => H - PY - ((w - lo) / (hi - lo || 1)) * (H - 2 * PY);
+  const line = ws.map((p, i) => `${i ? 'L' : 'M'}${x(p.at).toFixed(1)} ${y(p.weightKg).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(t1).toFixed(1)} ${H - 4} L${x(t0).toFixed(1)} ${H - 4} Z`;
+  const diff = Math.round(ws[ws.length - 1].weightKg - ws[0].weightKg);
+  const h = hover !== null ? ws[hover] : null;
+  return (
+    <div className="pf-hist2">
+      <div className="top"><span className={`pf-delta w6 ${diff >= 0 ? 'up' : 'down'}`}>{diff >= 0 ? '+' : '−'}{Math.abs(diff)} kg since {fmtDate(t0)}</span>
+        <span className="pf-sub" style={{ margin: 0 }}>{h ? `${fmtDate(h.at)} · ${Math.round(h.weightKg)} kg` : `${ws.length} scans`}</span></div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="pf-wline" role="img" aria-label={`Weight from ${Math.round(ws[0].weightKg)} to ${Math.round(ws[ws.length - 1].weightKg)} kg over ${ws.length} scans`} onMouseLeave={() => setHover(null)}>
+        <defs><linearGradient id="pf-wfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--green)" stopOpacity=".28" /><stop offset="1" stopColor="var(--green)" stopOpacity="0" /></linearGradient></defs>
+        <path d={area} fill="url(#pf-wfill)" className="ar" />
+        <path d={line} fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" pathLength={1} className="ln" />
+        {ws.map((p, i) => (
+          <g key={i} onMouseEnter={() => setHover(i)}>
+            <circle cx={x(p.at)} cy={y(p.weightKg)} r={14} fill="transparent" />
+            <circle cx={x(p.at)} cy={y(p.weightKg)} r={i === ws.length - 1 || i === hover ? 5 : 3.5} className={`pt${i === hover ? ' on' : ''}`} style={{ animationDelay: `${300 + i * 60}ms` }} />
+          </g>))}
+      </svg>
+      <div className="pf-hist-axis"><span>{fmtDate(t0)}</span><span>{fmtDate(t1)}</span></div>
     </div>
   );
 }
@@ -44,6 +89,8 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
         {diff !== null && (
           <div className={`pf-delta w6 ${diff >= 0 ? 'up' : 'down'}`}>{diff === 0 ? 'Same as the herd mean' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} kg vs the herd mean`}{lighter !== null && (diff >= 0 ? ` · heavier than ${lighter}% of the herd` : ` · lighter than ${100 - lighter}% of the herd`)}</div>)}
         <p>Experimental estimate, not validated against a scale</p></div>
+      <div className="pf-sect w6" style={{ marginLeft: 2 }}>Weight over time</div>
+      <WeightHistory id={a.id} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Compared with the herd</div>
       <Compare label="Weight" value={w} all={ws} unit="kg" />
       <Compare label="Body length" value={pos(a.bodyLengthCm)} all={lens} unit="cm" />
@@ -101,23 +148,25 @@ export default function HerdPage({ herd, selected, setSelected }: { herd: Herd; 
         <div className="pf-sortlbl">Sort by</div>
         <Pills label="Sort the herd" value={sort} onChange={setSort} options={SORTS} />
       </div>
-      <div className="pf-row" style={{ alignItems: 'flex-start', marginTop: 16 }}>
+      <div className="pf-row pf-split" style={{ alignItems: 'flex-start', marginTop: 16 }}>
         <div className="pf-card pf-table" style={{ flex: 1, minWidth: 0 }} ref={listRef} tabIndex={0} onKeyDown={onKey} aria-label="Animals. Use the arrow keys to move between them">
           <div className="hd w6"><span>Animal</span><span>Breed</span><span className="r">Body length</span><span className="r">Weight</span></div>
           <div key={`${breed}-${sort}-${q.trim()}`}>
             {list.map((x, i) => { const w = fmtW(x.weightKg); return (
               <button key={x.id} className={`tr${a?.id === x.id ? ' sel' : ''}${i < 18 ? ' pf-rise' : ''}`} style={i < 18 ? { animationDelay: `${i * 22}ms` } : undefined}
                 onClick={() => setSelected(x.id)} aria-current={a?.id === x.id || undefined} tabIndex={-1}>
-                <span className="nm"><b className="w6">{x.name}</b><small>{x.tagCode || '—'}</small></span>
+                <span className="nm"><b className="w6">{x.name}</b><small>{x.tagCode || '—'}<span className="brs">{x.breed ? ` · ${x.breed}` : ''}</span></small></span>
                 <span className="br">{x.breed || '—'}</span>
                 <span className="r">{cm(x.bodyLengthCm)}</span>
                 <span className="r wt"><b className="w8">{w ?? '—'}</b>{w !== null && <small>kg</small>}
                   <i style={{ width: `${w !== null ? (w / maxW) * 100 : 0}%` }} /></span>
               </button>); })}
           </div>
-          {!list.length && <div className="pf-empty">{herd.animals === null ? 'Loading the herd…' : 'No animals match this search.'}</div>}
+          {herd.animals === null ? <SkelRows n={9} /> : !list.length && <div className="pf-empty">No animals match this search.</div>}
         </div>
-        {a && <Sheet key={a.id} a={a} herd={all} />}
+        {a ? <Sheet key={a.id} a={a} herd={all} /> : herd.animals === null && (
+          <aside className="pf-card pf-sheet" aria-hidden="true"><Skel w={160} h={26} /><Skel w={220} h={22} style={{ marginTop: 12 }} />
+            <Skel h={150} r={16} style={{ marginTop: 18 }} /><Skel w={180} h={12} style={{ marginTop: 22 }} /><Skel h={40} style={{ marginTop: 12 }} /><Skel h={40} style={{ marginTop: 12 }} /></aside>)}
       </div>
     </div>
   );

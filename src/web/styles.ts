@@ -243,6 +243,23 @@ html, body { background: var(--ground); }
 .pf-acct .row.dang { color: var(--danger); } .pf-acct .ic { width: 32px; height: 32px; border-radius: 9px; background: var(--soft2); display: flex; align-items: center; justify-content: center; color: var(--ink2); } .pf-acct .ic svg { width: 18px; }
 @media (prefers-reduced-motion: reduce) { .pf-avatar-xl .ring, .pf-avatar-xl .in, .pf-menu, .pf-edit { animation: none !important; } .pf-theme .knob, .pf-theme .ic, .pf-people .pr { transition: none !important; } }
 
+/* ---------- histórico de peso ---------- */
+.pf-hist2 .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .pf-hist2 .pf-delta { margin-top: 0; }
+.pf-wline { width: 100%; height: auto; display: block; margin-top: 10px; overflow: visible; }
+.pf-wline .ln { stroke-dasharray: 1; stroke-dashoffset: 1; animation: pfDraw .9s .1s cubic-bezier(.4,0,.2,1) forwards; }
+.pf-wline .ar { opacity: 0; animation: pfFade .6s .5s forwards; }
+.pf-wline .pt { fill: var(--card); stroke: var(--green); stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: pfDot .35s cubic-bezier(.2,.8,.3,1.4) both; transition: r .15s; }
+.pf-wline .pt.on { fill: var(--green); }
+@keyframes pfDraw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .pf-wline .ln { animation: none; stroke-dashoffset: 0; } .pf-wline .ar { animation: none; opacity: 1; } .pf-wline .pt { animation: none; } }
+
+/* ---------- esqueletos ---------- */
+.pf-skel { display: block; background: linear-gradient(90deg, var(--soft2) 25%, var(--soft3) 37%, var(--soft2) 63%); background-size: 400% 100%; animation: pfShimmer 1.4s ease-in-out infinite; }
+@keyframes pfShimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+.pf-skelbars { display: flex; align-items: flex-end; gap: 6px; margin-top: 14px; } .pf-skelbars .pf-skel { flex: 1; }
+.pf-skelrow { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line); } .pf-skelrow:last-child { border-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .pf-skel { animation: none; } }
+
 /* ---------- troca de tema: passagem de scan ---------- */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 ::view-transition-new(root) { animation: pfScanReveal 1.15s cubic-bezier(.55,.05,.3,1) both; }
@@ -257,6 +274,26 @@ html, body { background: var(--ground); }
 ::view-transition-old(pf-scan) { display: none; }
 ::view-transition-new(pf-scan) { animation: pfScanMove 1.15s cubic-bezier(.55,.05,.3,1) both; }
 @keyframes pfScanMove { from { transform: translateY(-150px); } to { transform: translateY(100vh); } }
+
+/* ---------- portáteis pequenos (1024–1279 px): menu só com ícones, cartões 2 a 2, blocos empilhados ---------- */
+.pf-table .brs { display: none; }
+@media (max-width: 1279px) {
+  .pf-side { width: 80px; padding: 24px 12px 18px; align-items: center; }
+  .pf-brand { padding: 0 0 22px; } .pf-brand .pf-word { display: none; }
+  .pf-nav { width: 100%; } .pf-nav button { justify-content: center; padding: 12px; } .pf-nav .lbl { display: none; }
+  .pf-org { display: none; }
+  .pf-me { flex-direction: column; padding: 12px 0 0; } .pf-me .who { flex: none; } .pf-me .nmb { display: none; }
+  .pf-page { padding: 28px 28px 34px; }
+  .pf-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf-row:not(.pf-split) { flex-direction: column; } .pf-row:not(.pf-split) > * { width: 100%; flex: none !important; }
+  .pf-search { width: 300px; }
+  .pf-table .hd, .pf-table .tr { grid-template-columns: minmax(0, 1fr) 96px 120px; padding: 0 16px; }
+  .pf-table .hd span:nth-child(2), .pf-table .tr .br { display: none; }
+  .pf-table .brs { display: inline; }
+  .pf-sheet { width: 340px; padding: 20px; }
+  .pf-secnav { width: 230px; }
+  .pf-pills { min-width: 0; } .pf-pills button { padding: 9px 11px; }
+}
 
 /* ---------- login ---------- */
 .pf-login { position: fixed; inset: 0; display: flex; }
