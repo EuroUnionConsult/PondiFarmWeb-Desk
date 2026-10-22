@@ -100,6 +100,7 @@ export interface CloudAnimal {
 }
 
 function numOrNull(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;   // Number(null) é 0: sem isto, «sem peso» entrava na média como 0 kg (PR #118)
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -223,6 +224,8 @@ async function loadCloudAnimals(): Promise<CloudAnimal[]> {
       } as CloudAnimal;
   });
   // Cacheia por org (mostra instantâneo na próxima navegação).
+  // Se a sessão mudou (logout ou outra conta) enquanto isto carregava, não escreve a cache.
+  if ((await getOrganizationId()) !== orgId) return result;
   try { await AsyncStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({ orgId, at: Date.now(), animals: result })); } catch {}
   return result;
 }
