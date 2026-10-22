@@ -75,12 +75,8 @@ export const CSS = `
 
 /* ---------- login ---------- */
 .pf-login { position: fixed; inset: 0; display: flex; }
-.pf-lp { flex: 1.1; position: relative; overflow: hidden; background: #122434; color: #fff; padding: 56px 64px; display: flex; flex-direction: column; }
-.pf-lp img.c { position: absolute; left: 50%; top: 46%; width: 760px; max-width: 120%; transform: translate(-50%, -50%); }
-.pf-lbrand { position: relative; z-index: 1; align-self: flex-start; display: flex; align-items: center; gap: 12px; background: #F2F4F6; padding: 10px 18px 10px 10px; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
-.pf-lbrand img { width: 46px; height: 46px; border-radius: 12px; } .pf-lbrand .pf-word { font-size: 28px; }
-.pf-lp h2 { margin-top: auto; font-size: 46px; letter-spacing: -1.4px; line-height: 1.05; position: relative; }
-.pf-lp p { position: relative; margin-top: 14px; color: #B9C7D4; font-size: 17px; max-width: 440px; line-height: 1.5; }
+.pf-lp { flex: 1.1; position: relative; overflow: hidden; background: #122434; display: flex; align-items: center; justify-content: center; padding: 56px; }
+.pf-lp-icon { width: min(46%, 380px); aspect-ratio: 1; border-radius: 24%; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
 .pf-rp { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
 .pf-form { width: 400px; position: relative; z-index: 1; }
 .pf-seg { display: flex; background: rgba(118,118,128,.12); border-radius: 12px; padding: 3px; margin: 26px 0 8px; }

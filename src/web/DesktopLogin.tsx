@@ -3,7 +3,6 @@ import { Asset } from 'expo-asset';
 import { useAuth } from '../lib/AuthContext';
 
 const ICON = Asset.fromModule(require('../../assets/icon.png')).uri;
-const CLOUD = Asset.fromModule(require('../../assets/web/login-cloud.png')).uri;
 
 // Entrar e criar conta no ecrã de computador. Usa a mesma conta e o mesmo backend da app.
 export default function DesktopLogin() {
@@ -33,11 +32,8 @@ export default function DesktopLogin() {
 
   return (
     <div className="pf pf-login">
-      <section className="pf-lp">
-        <img className="c" src={CLOUD} alt="" />
-        <div className="pf-lbrand"><img src={ICON} alt="" /><span className="pf-word w8">Pondi<span>Farm</span></span></div>
-        <h2 className="w8">Your herd, measured<br />without a scale.</h2>
-        <p>Sign in to see every animal, record and estimate your team has captured with the iPhone app.</p>
+      <section className="pf-lp" aria-hidden="true">
+        <img className="pf-lp-icon" src={ICON} alt="" />
       </section>
       <section className="pf-rp">
         <div className="pf-ground" style={{ position: 'absolute' }} />
