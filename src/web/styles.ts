@@ -116,8 +116,15 @@ html, body { background: var(--ground); }
 .pf-mini { display: flex; gap: 28px; margin-bottom: 10px; } .pf-mini span { display: block; font-size: 13px; color: var(--muted); } .pf-mini b { font-size: 24px; letter-spacing: -.5px; } .pf-mini small { font-size: 14px; color: var(--ink2); }
 .pf-scatter { width: 100%; height: auto; display: block; margin-top: 6px; }
 .pf-scatter .ax { font-size: 11px; fill: var(--muted); }
-.pf-scatter circle { fill: var(--green); fill-opacity: .7; stroke: var(--card); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: pfDot .4s cubic-bezier(.2,.8,.3,1.3) both; transition: fill-opacity .15s; cursor: default; }
-.pf-scatter circle:hover { fill-opacity: 1; fill: var(--navy); }
+.pf-scatter .grid { stroke: var(--line); stroke-dasharray: 3 4; }
+.pf-scatter .ax.tt { font-size: 11.5px; fill: var(--ink2); font-family: Inter_600SemiBold, Inter, sans-serif; }
+.pf-scatter .trend { stroke: var(--orange); stroke-width: 2; stroke-dasharray: 6 5; fill: none; opacity: .85; animation: pfFade .6s .3s both; }
+.pf-scatter .guide { stroke: var(--navy); stroke-width: 1; stroke-dasharray: 2 3; opacity: .55; }
+.pf-scatter .dotg { cursor: pointer; }
+.pf-scatter .dot { fill: var(--green); fill-opacity: .8; stroke: var(--card); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: pfDot .4s cubic-bezier(.2,.8,.3,1.3) both; transition: r .15s, fill .15s; }
+.pf-scatter .dot.on { fill: var(--navy); fill-opacity: 1; }
+.pf-disclaimer { margin-top: 18px; color: var(--muted); } .pf-disclaimer svg { color: var(--muted); }
+.pf-note span { min-width: 0; line-height: 1.45; }
 .pf-rank { width: 30px; height: 30px; border-radius: 9px; background: var(--greenL); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
 .pf-foot { font-size: 13px; color: var(--muted); margin: 14px 6px 0; line-height: 1.5; max-width: 760px; }
 
@@ -174,7 +181,8 @@ html, body { background: var(--ground); }
 .pf-table .tr { width: 100%; height: 58px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-size: 14.5px; color: var(--label); position: relative; transition: background .15s; }
 .pf-table .tr:last-child { border-bottom: 0; } .pf-table .tr:hover { background: var(--hover); }
 .pf-table .tr.sel { background: var(--sel); } .pf-table .tr.sel:before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--green); }
-.pf-table .nm b { display: block; font-size: 15px; } .pf-table .nm small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+.pf-table .nm { min-width: 0; } .pf-table .nm b, .pf-table .nm small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-table .nm b { font-size: 15px; } .pf-table .nm small { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
 .pf-table .br { color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pf-table .wt { position: relative; display: flex; align-items: baseline; gap: 4px; padding-bottom: 6px; min-width: 110px; justify-content: flex-end; }
 .pf-table .wt b { font-size: 17px; } .pf-table .wt small { font-size: 11.5px; color: var(--muted); }
@@ -253,12 +261,34 @@ html, body { background: var(--ground); }
 @keyframes pfDraw { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .pf-wline .ln { animation: none; stroke-dashoffset: 0; } .pf-wline .ar { animation: none; opacity: 1; } .pf-wline .pt { animation: none; } }
 
+/* ---------- scan 3D ---------- */
+.pf-3d { position: relative; height: 280px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+  background: radial-gradient(120% 90% at 50% 20%, var(--card) 0%, var(--soft2) 100%); animation: pfIn .4s both; }
+.pf-3d .cv { position: absolute; inset: 0; cursor: grab; } .pf-3d .cv:active { cursor: grabbing; } .pf-3d canvas { display: block; width: 100% !important; height: 100% !important; }
+.pf-3d .ov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 13.5px; }
+.pf-3d .bar { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; align-items: center; justify-content: space-between; animation: pfIn .35s .2s both; }
+.pf-pills.sm { min-width: 0; background: var(--card); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.12); } .pf-pills.sm .thumb { background: var(--greenL); box-shadow: none; } .pf-pills.sm button.on { color: var(--green); } .pf-pills.sm button { padding: 6px 12px; font-size: 12.5px; }
+.pf-3d .bar .pf-link { background: var(--card); border: 1px solid var(--line); }
+.pf-3d-empty { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; border: 1px dashed var(--ctl); color: var(--muted); font-size: 13px; line-height: 1.45; }
+.pf-3d-empty svg { width: 22px; flex: none; color: var(--navy); margin-top: 2px; } .pf-3d-empty b { display: block; color: var(--label); font-size: 14px; margin-bottom: 2px; }
+
 /* ---------- esqueletos ---------- */
 .pf-skel { display: block; background: linear-gradient(90deg, var(--soft2) 25%, var(--soft3) 37%, var(--soft2) 63%); background-size: 400% 100%; animation: pfShimmer 1.4s ease-in-out infinite; }
 @keyframes pfShimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
 .pf-skelbars { display: flex; align-items: flex-end; gap: 6px; margin-top: 14px; } .pf-skelbars .pf-skel { flex: 1; }
 .pf-skelrow { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line); } .pf-skelrow:last-child { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) { .pf-skel { animation: none; } }
+
+/* ---------- Definições dentro do Perfil (acordeão) ---------- */
+.pf-acct .row .hint { display: block; font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+.pf-acct .chev { display: inline-flex; color: var(--faint); transition: transform .35s cubic-bezier(.3,1.2,.4,1), color .2s; } .pf-acct .chev.open { transform: rotate(90deg); color: var(--green); }
+.pf-acct .row[aria-expanded="true"] { background: var(--hover); }
+.pf-collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.3,.8,.3,1); border-bottom: 1px solid transparent; }
+.pf-collapse.open { grid-template-rows: 1fr; border-bottom-color: var(--line); }
+.pf-collapse .inner { overflow: hidden; min-height: 0; }
+.pf-collapse .pad { padding: 18px 20px 22px; animation: pfIn .4s .08s cubic-bezier(.2,.8,.2,1) both; }
+.pf-settings.emb { margin-top: 0; } .pf-settings.emb .pf-secpanel h2 { font-size: 18px; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .pf-collapse, .pf-acct .chev { transition: none; } .pf-collapse .pad { animation: none; } }
 
 /* ---------- troca de tema: passagem de scan ---------- */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }

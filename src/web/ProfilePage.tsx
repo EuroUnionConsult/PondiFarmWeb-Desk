@@ -8,7 +8,7 @@ import {
   removePerson, transferLeadership, type OrgPerson, type PendingJoinRequest,
 } from '../lib/orgs';
 import { SkelRows, useCountUp } from './charts';
-import { Confirm } from './SettingsPage';
+import SettingsPage, { Confirm } from './SettingsPage';
 import { switchThemeWithScan } from './themeScan';
 import { Chevron, DotsIcon, GearIcon, MoonIcon, PenIcon, SunIcon } from './icons';
 
@@ -54,7 +54,7 @@ function PersonMenu({ p, onLeader, onRemove }: { p: OrgPerson; onLeader: () => v
   );
 }
 
-export default function ProfilePage({ goSettings }: { goSettings: () => void }) {
+export default function ProfilePage() {
   const { user, logout, refreshMe } = useAuth();
   const orgId = user?.organizationId ?? null;
   const isLeader = user?.role === 'leader';
@@ -70,6 +70,10 @@ export default function ProfilePage({ goSettings }: { goSettings: () => void }) 
   const [error, setError] = useState<string | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [saved, setSaved] = useState(false);
+  // As Definições vivem aqui, dentro da conta: a linha abre e fecha com a seta a rodar.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (settingsOpen) setTimeout(() => settingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 260); }, [settingsOpen]);
 
   useEffect(() => { void loadProfile(user?.id).then(setProfile); }, [user?.id]);
   const load = useCallback(async () => {
@@ -189,7 +193,12 @@ export default function ProfilePage({ goSettings }: { goSettings: () => void }) 
 
       <div className="pf-sect w6">Account</div>
       <div className="pf-card pf-acct">
-        <button className="row" onClick={goSettings}><span className="ic"><GearIcon /></span><span className="w6">Settings</span><Chevron /></button>
+        <button className="row" aria-expanded={settingsOpen} aria-controls="pf-prof-settings" onClick={() => setSettingsOpen((v) => !v)}>
+          <span className="ic"><GearIcon /></span><span><span className="w6">Settings</span><small className="hint">Cloud sync, this browser, about</small></span>
+          <span className={`chev${settingsOpen ? ' open' : ''}`}><Chevron /></span></button>
+        <div id="pf-prof-settings" ref={settingsRef} className={`pf-collapse${settingsOpen ? ' open' : ''}`} role="region" aria-label="Settings">
+          <div className="inner">{settingsOpen && <div className="pad"><SettingsPage embedded /></div>}</div>
+        </div>
         {orgId && !isLeader && user?.role === 'member' && (
           <button className="row dang w6" onClick={() => setAsk({ title: 'Leave organization?', body: `You stop seeing ${user?.organizationName}'s data.`, action: 'Leave', run: () => orgId && act('leave', () => leaveOrganization(orgId), true) })}>Leave organization</button>)}
         <button className="row dang w6" onClick={() => setAsk({ title: 'Sign out?', body: user ? `Sign out of ${user.email} on this browser?` : 'Sign out?', action: 'Sign out', run: () => { void logout(); } })}>Sign out</button>

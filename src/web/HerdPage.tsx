@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchAnimalScans, type CloudAnimal, type ScanPoint } from '../lib/api';
 import { fmtW, type Herd } from './herd';
 import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
-import { CloudIcon, SearchIcon } from './icons';
+import { CloudIcon, PhoneIcon, SearchIcon } from './icons';
+import { useTheme } from '../lib/ThemeContext';
+import ScanViewer from './ScanViewer';
 
 type Sort = 'name' | 'heavy' | 'light';
 const SORTS: { id: Sort; label: string }[] = [{ id: 'name', label: 'Name' }, { id: 'heavy', label: 'Heaviest' }, { id: 'light', label: 'Lightest' }];
@@ -68,6 +70,25 @@ function WeightHistory({ id }: { id: string }) {
   );
 }
 
+/**
+ * Onde está o modelo 3D do scan. Hoje o app só envia as medidas: a malha fica no
+ * iPhone. Quando o servidor guardar as malhas, isto devolve o endereço delas.
+ * `pf-demo-mesh` (localStorage) é só para a pré-visualização local com um scan real.
+ */
+function meshUrlFor(_a: CloudAnimal): string | null {
+  try { return localStorage.getItem('pf-demo-mesh'); } catch { return null; }
+}
+
+function Scan3D({ a }: { a: CloudAnimal }) {
+  const { mode } = useTheme();
+  const src = meshUrlFor(a);
+  if (src) return <ScanViewer src={src} dark={mode === 'dark'} />;
+  return (
+    <div className="pf-3d-empty"><PhoneIcon /><div><b className="w6">The 3D model is on the iPhone</b>
+      <span>The app sends the measurements to the cloud, but the 3D model of the scan stays on the phone that captured it.</span></div></div>
+  );
+}
+
 function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
   const w = fmtW(a.weightKg);
   const shown = useCountUp(w);
@@ -89,6 +110,8 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
         {diff !== null && (
           <div className={`pf-delta w6 ${diff >= 0 ? 'up' : 'down'}`}>{diff === 0 ? 'Same as the herd mean' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} kg vs the herd mean`}{lighter !== null && (diff >= 0 ? ` · heavier than ${lighter}% of the herd` : ` · lighter than ${100 - lighter}% of the herd`)}</div>)}
         <p>Experimental estimate, not validated against a scale</p></div>
+      <div className="pf-sect w6" style={{ marginLeft: 2 }}>3D scan</div>
+      <Scan3D a={a} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Weight over time</div>
       <WeightHistory id={a.id} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Compared with the herd</div>
@@ -155,7 +178,7 @@ export default function HerdPage({ herd, selected, setSelected }: { herd: Herd; 
             {list.map((x, i) => { const w = fmtW(x.weightKg); return (
               <button key={x.id} className={`tr${a?.id === x.id ? ' sel' : ''}${i < 18 ? ' pf-rise' : ''}`} style={i < 18 ? { animationDelay: `${i * 22}ms` } : undefined}
                 onClick={() => setSelected(x.id)} aria-current={a?.id === x.id || undefined} tabIndex={-1}>
-                <span className="nm"><b className="w6">{x.name}</b><small>{x.tagCode || '—'}<span className="brs">{x.breed ? ` · ${x.breed}` : ''}</span></small></span>
+                <span className="nm" title={[x.name, x.tagCode, x.breed].filter(Boolean).join(' · ')}><b className="w6">{x.name}</b><small>{x.tagCode || '—'}<span className="brs">{x.breed ? ` · ${x.breed}` : ''}</span></small></span>
                 <span className="br">{x.breed || '—'}</span>
                 <span className="r">{cm(x.bodyLengthCm)}</span>
                 <span className="r wt"><b className="w8">{w ?? '—'}</b>{w !== null && <small>kg</small>}

@@ -64,7 +64,7 @@ function CloudPanel() {
   );
 }
 
-function BrowserPanel() {
+function BrowserPanel({ embedded }: { embedded?: boolean }) {
   const { user, logout } = useAuth();
   const [ask, setAsk] = useState<'clear' | 'out' | null>(null);
   const [done, setDone] = useState(false);
@@ -77,8 +77,9 @@ function BrowserPanel() {
   return (
     <>
       <div className="pf-card pf-set">
-        <div className="row"><div><div className="w6">Signed in as</div><div className="pf-sub">{user?.email}</div></div>
-          <button className="pf-btn l w7" onClick={() => setAsk('out')}>Sign out</button></div>
+        {/* Dentro do Perfil, o «Sign out» já está na lista da conta logo abaixo. */}
+        {!embedded && <div className="row"><div><div className="w6">Signed in as</div><div className="pf-sub">{user?.email}</div></div>
+          <button className="pf-btn l w7" onClick={() => setAsk('out')}>Sign out</button></div>}
         <div className="row"><div><div className="w6">Saved data</div><div className="pf-sub">{done ? 'Cleared. The herd will download again from the cloud.' : 'A copy of the herd is kept here so the pages open instantly'}</div></div>
           <button className="pf-btn r-l w7" onClick={() => setAsk('clear')} disabled={done}>Clear data</button></div>
       </div>
@@ -105,7 +106,8 @@ function AboutPanel() {
   );
 }
 
-export default function SettingsPage() {
+/** `embedded`: dentro do Perfil (sem título de página nem «Sign out» repetido). */
+export default function SettingsPage({ embedded }: { embedded?: boolean }) {
   const [sec, setSec] = useState<Section>('cloud');
   const i = SECTIONS.findIndex((s) => s.id === sec);
   const onKey = (e: React.KeyboardEvent) => {
@@ -116,10 +118,8 @@ export default function SettingsPage() {
     (e.currentTarget.querySelectorAll('button')[n] as HTMLButtonElement | undefined)?.focus();
   };
   const current = SECTIONS[i];
-  return (
-    <div className="pf-page">
-      <div className="pf-top"><div><h1 className="w8">Settings</h1><div className="pf-sub">Preferences for PondiFarm on this computer</div></div></div>
-      <div className="pf-row pf-split pf-settings">
+  const content = (
+    <div className={`pf-row pf-split pf-settings${embedded ? ' emb' : ''}`}>
         <nav className="pf-secnav" role="tablist" aria-orientation="vertical" aria-label="Settings sections" onKeyDown={onKey} style={{ ['--i' as any]: i }}>
           <span className="thumb" aria-hidden="true" />
           {SECTIONS.map(({ id, label, hint, Icon }) => (
@@ -129,10 +129,16 @@ export default function SettingsPage() {
         <section className="pf-secpanel" role="tabpanel" aria-label={current.label} key={sec}>
           <h2 className="w8">{current.label}</h2>
           {sec === 'cloud' && <CloudPanel />}
-          {sec === 'browser' && <BrowserPanel />}
+          {sec === 'browser' && <BrowserPanel embedded={embedded} />}
           {sec === 'about' && <AboutPanel />}
         </section>
       </div>
+  );
+  if (embedded) return content;
+  return (
+    <div className="pf-page">
+      <div className="pf-top"><div><h1 className="w8">Settings</h1><div className="pf-sub">Preferences for PondiFarm on this computer</div></div></div>
+      {content}
     </div>
   );
 }
