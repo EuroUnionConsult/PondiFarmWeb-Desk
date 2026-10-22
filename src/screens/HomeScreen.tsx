@@ -249,9 +249,9 @@ export default function HomeScreen() {
 
       {Platform.OS === 'web' ? (
         <FadeInView index={2}>
-          <View style={[styles.empty, { flexDirection: 'row', gap: 10, paddingVertical: 14 }]}>
+          <View style={[styles.empty, { flexDirection: 'row', gap: 12, paddingVertical: 14, paddingHorizontal: 18 }]}>
             <Ionicons name="phone-portrait-outline" size={20} color={ios.secondaryLabel} />
-            <Text style={[styles.emptySub, { flex: 1, textAlign: 'left' }]}>New scans are captured with the iPhone app. They appear here as soon as they sync.</Text>
+            <Text style={[styles.emptySub, { flex: 1, textAlign: 'left', paddingHorizontal: 0 }]}>New scans are captured with the iPhone app. They appear here as soon as they sync.</Text>
           </View>
         </FadeInView>
       ) : (

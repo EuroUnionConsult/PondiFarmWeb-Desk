@@ -232,7 +232,9 @@ export default function HerdScreen() {
           <Text style={styles.emptySub}>
             {query
               ? 'Try a different ID or breed.'
-              : 'Tap + to record the first scan of the herd.'}
+              : Platform.OS === 'web'
+                ? 'Scans captured with the iPhone app appear here as they sync.'
+                : 'Tap + to record the first scan of the herd.'}
           </Text>
         </View>
       ) : (

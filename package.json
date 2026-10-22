@@ -4,7 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start --web",
-    "build": "expo export --platform web --output-dir dist",
+    "build": "expo export --platform web --output-dir dist --clear",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
