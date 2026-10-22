@@ -1,0 +1,868 @@
+import React, { useState, useRef } from 'react';
+import {
+  View, StyleSheet, TouchableOpacity, Platform, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, ScrollView,
+} from 'react-native';
+import Text from '../components/Text';
+import { useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ios, fonts } from '../lib/theme';
+import {
+  LidarScannerView,
+  type BoxFitEvent,
+  type BoxFitFailureReason,
+  type LidarScannerViewRef,
+  type ScanCompleteEvent,
+  type ScanProgressEvent,
+} from '../../modules/lidar-scanner';
+import { saveRecord, type ScanRecord, type ScanCategory } from '../lib/storage';
+import { pushRecord } from '../lib/sync';
+import type { RootStackParamList } from '../navigation/types';
+import GlassSurface from '../components/GlassSurface';
+import CoverageRing from '../components/CoverageRing';
+import { StatusBar } from 'expo-status-bar';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const MIN_VERTICES = 100;
+
+// A partir daqui o scan conta como completo (média dos 4 lados).
+const COVERAGE_DONE = 0.75;
+
+// Porque o ajuste automático não encaixou a caixa — e o que o utilizador pode fazer.
+const FIT_FAILURE_TEXT: Record<BoxFitFailureReason, string> = {
+  touchingStructure:
+    'The animal seems to touch a fence or crush. Adjust the box manually. Loose animals measure better.',
+  tooLarge: 'Found something too big for one animal. Adjust the box manually.',
+  tooSmall: 'Couldn’t find the animal yet. Point at it and tap Fit to animal, or adjust manually.',
+  nothingAboveFloor: 'Couldn’t find the animal yet. Point at it and tap Fit to animal, or adjust manually.',
+  notEnoughPoints: 'Not enough of the animal captured yet. Move closer, then tap Fit to animal.',
+  cancelled: 'Box adjusted by hand.',
+};
+
+type FitState = { state: 'fitting' | 'fitted' | 'failed' | 'manual'; reason?: BoxFitFailureReason };
+
+// Dica para o lado que falta. Os lados são relativos a onde o utilizador começou.
+function coverageHint(p: ScanProgressEvent | null, fit: FitState, manual: boolean): string {
+  if (!p || p.points < 300) return 'Point the camera at the animal';
+  if (!manual && fit.state === 'fitting') return 'Hold on, fitting the box to the animal';
+  if (p.overall >= COVERAGE_DONE) return 'Full coverage. You can finish';
+  const sides: [number, string][] = [
+    [p.near, 'Capture the side where you started'],
+    [p.right, 'Walk slowly to your right'],
+    [p.far, 'Keep going to the far side'],
+    [p.left, 'Now the side on your left'],
+  ];
+  // Aponta o lado com menos cobertura.
+  const missing = sides.filter(([v]) => v < COVERAGE_DONE);
+  missing.sort((a, b) => a[0] - b[0]);
+  return missing[0]?.[1] ?? 'Full coverage. You can finish';
+}
+
+const CATEGORIES: { key: ScanCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'cow',   label: 'Cattle', icon: 'paw-outline' },
+  { key: 'extra', label: 'Extra',  icon: 'cube-outline' },
+];
+
+// Limousine first and preselected: it is the pilot breed and the only one with a
+// measured (experimental) calibration. 'default' stays available, last.
+const BREEDS = [
+  { key: 'limousine',  label: 'Limousine' },
+  { key: 'minhota',    label: 'Minhota' },
+  { key: 'alentejana', label: 'Alentejana' },
+  { key: 'barrosã',    label: 'Barrosã' },
+  { key: 'maronesa',   label: 'Maronesa' },
+  { key: 'cachena',    label: 'Cachena' },
+  { key: 'mirandesa',  label: 'Mirandesa' },
+  { key: 'default',    label: 'Other' },
+];
+
+function PreScanModal({
+  visible, onConfirm, onCancel,
+}: {
+  visible: boolean;
+  onConfirm: (category: ScanCategory, animalId: string, breed: string) => void;
+  onCancel: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [category, setCategory] = useState<ScanCategory>('cow');
+  const [animalId, setAnimalId] = useState('');
+  const [breed, setBreed] = useState('limousine');
+
+  const isCow = category === 'cow';
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <KeyboardAvoidingView
+        style={styles.modalBackdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>New scan</Text>
+          <Text style={styles.modalSub}>
+            {isCow
+              ? 'Animal ID is optional. Leave blank to auto-generate.'
+              : 'Extra captures (objects / people) need no ID or breed.'}
+          </Text>
+
+          <Text style={styles.sectionHeader}>Category</Text>
+          <View style={styles.card}>
+            <View style={styles.chipScroll}>
+              {CATEGORIES.map(c => {
+                const active = category === c.key;
+                return (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[styles.breedChip, styles.categoryChip, active && styles.breedChipActive]}
+                    onPress={() => setCategory(c.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={c.icon}
+                      size={15}
+                      color={active ? '#FFFFFF' : ios.label}
+                    />
+                    <Text style={[styles.breedLabel, active && styles.breedLabelActive]}>
+                      {c.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {isCow && (
+            <>
+              <Text style={styles.sectionHeader}>Animal</Text>
+              <View style={styles.card}>
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>ID</Text>
+                  <TextInput
+                    style={styles.rowInput}
+                    placeholder="e.g. PT-347821"
+                    placeholderTextColor={ios.tertiaryLabel}
+                    value={animalId}
+                    onChangeText={setAnimalId}
+                    autoCapitalize="characters"
+                    returnKeyType="done"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.sectionHeader}>Breed</Text>
+              <View style={styles.card}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.breedScroll}
+                >
+                  {BREEDS.map(b => {
+                    const active = breed === b.key;
+                    return (
+                      <TouchableOpacity
+                        key={b.key}
+                        style={[styles.breedChip, active && styles.breedChipActive]}
+                        onPress={() => setBreed(b.key)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.breedLabel, active && styles.breedLabelActive]}>
+                          {b.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </>
+          )}
+
+          <TouchableOpacity
+            style={styles.confirmBtn}
+            onPress={() => onConfirm(category, animalId.trim(), breed)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.confirmText}>Open scanner</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.6}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+export default function ScanScreen() {
+  const insets = useSafeAreaInsets();
+  const nav = useNavigation<Nav>();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanning, setScanning] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [showPreScan, setShowPreScan] = useState(true);
+  const [category, setCategory] = useState<ScanCategory>('cow');
+  const [animalId, setAnimalId] = useState('');
+  const [breed, setBreed] = useState('limousine');
+  const [boxScale, setBoxScale] = useState(1.0);
+  const [progress, setProgress] = useState<ScanProgressEvent | null>(null);
+  const [fit, setFit] = useState<FitState>({ state: 'fitting' });
+  const [manual, setManual] = useState(false);
+  const scannerRef = useRef<LidarScannerViewRef>(null);
+
+  const handlePreScanConfirm = (cat: ScanCategory, id: string, b: string) => {
+    setCategory(cat);
+    setAnimalId(id);
+    setBreed(b);
+    setShowPreScan(false);
+  };
+
+  const startScan = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setProgress(null);
+    setFit({ state: 'fitting' });
+    setManual(false);
+    setBoxScale(1.0);
+    setScanning(true);
+    await scannerRef.current?.startScan?.();
+  };
+
+  const stopScan = async () => {
+    setScanning(false);
+    setProcessing(true);
+    await scannerRef.current?.stopScan?.();
+  };
+
+  const adjustBoxScale = async (delta: number) => {
+    const next = Math.min(2.0, Math.max(0.5, Math.round((boxScale + delta) * 10) / 10));
+    if (next === boxScale) return;
+    await Haptics.selectionAsync();
+    setBoxScale(next);
+    await scannerRef.current?.setBoxScale?.(next);
+  };
+
+  const recenterBox = async () => {
+    await Haptics.selectionAsync();
+    setBoxScale(1.0);
+    await scannerRef.current?.recenterBox?.();
+  };
+
+  const rotateBox = async (degrees: number) => {
+    await Haptics.selectionAsync();
+    await scannerRef.current?.rotateBox?.(degrees);
+  };
+
+  const enterManual = async () => {
+    await Haptics.selectionAsync();
+    setManual(true);
+    await scannerRef.current?.cancelAutoFit?.();
+  };
+
+  const refitBox = async () => {
+    await Haptics.selectionAsync();
+    setManual(false);
+    setFit({ state: 'fitting' });
+    await scannerRef.current?.autoFitBox?.();
+  };
+
+  const handleScanProgress = (e: { nativeEvent: ScanProgressEvent }) => {
+    setProgress(e.nativeEvent);
+  };
+
+  const handleBoxFit = (e: { nativeEvent: BoxFitEvent }) => {
+    const r = e.nativeEvent;
+    if (r.ok) {
+      setFit({ state: 'fitted' });
+      setBoxScale(1.0); // o tamanho ajustado passa a ser o novo 1.0×
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (r.reason === 'cancelled') {
+      setFit({ state: 'manual' });
+    } else if (r.final) {
+      setFit({ state: 'failed', reason: r.reason });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+  };
+
+  const handleScanComplete = async (e: { nativeEvent: ScanCompleteEvent }) => {
+    setScanning(false);
+    setProcessing(false);
+    const { meshUri, meshPlyUri, meshTexturedUri, keyframesDir, vertexCount, faceCount, measurements } = e.nativeEvent;
+
+    if (!measurements || vertexCount < MIN_VERTICES) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Not enough data',
+        'We couldn’t capture enough geometry. Move closer to the animal and try again.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
+    const isCow = category === 'cow';
+    const record: ScanRecord = {
+      // id único e estável (também serve de chave de idempotência no push).
+      id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+      scannedAt: Date.now(),
+      category,
+      source: 'lidar',
+      // Sem placeholder compartilhado: se o usuário não digitou ID, fica undefined
+      // (o push gera uma tag única por scan — nunca junta animais diferentes).
+      animalId: isCow ? ((animalId || '').trim() || undefined) : undefined,
+      breed: isCow ? breed : undefined,
+      measurements,
+      vertexCount,
+      faceCount,
+      meshUri,
+      meshPlyUri,
+      meshTexturedUri,
+      keyframesDir,
+    };
+
+    await saveRecord(record);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Só bovinos sobem pro backend (offline-first, 2º plano, não bloqueia a navegação).
+    if (isCow) pushRecord(record).catch(() => {});
+    nav.replace('Result', { record });
+  };
+
+  if (!permission) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={ios.accent} />
+      </View>
+    );
+  }
+
+  // ARKit needs the camera, so we keep the permission gate.
+  if (!permission.granted) {
+    return (
+      <View style={[styles.permWrap, { paddingTop: insets.top + 40 }]}>
+        <View style={styles.permIcon}>
+          <Ionicons name="cube-outline" size={36} color={ios.accent} />
+        </View>
+        <Text style={styles.permTitle}>Camera access required</Text>
+        <Text style={styles.permDesc}>
+          PondiFarm needs the camera so the LiDAR scanner can capture the animal in 3D.
+        </Text>
+        <TouchableOpacity style={styles.permBtn} onPress={requestPermission} activeOpacity={0.85}>
+          <Text style={styles.permBtnText}>Allow camera access</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.permSecondary} onPress={() => nav.goBack()} activeOpacity={0.6}>
+          <Text style={styles.permSecondaryText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const isCow = category === 'cow';
+  const coverageDone = (progress?.overall ?? 0) >= COVERAGE_DONE;
+  const topTitle = isCow ? (animalId || 'New scan') : 'Extra';
+  const topSub = isCow
+    ? (BREEDS.find(b => b.key === breed)?.label ?? breed)
+    : 'Object / person';
+
+  return (
+    <View style={styles.container}>
+      {/* Ecrã escuro (câmara): barra de estado clara. O resto da app é claro. */}
+      <StatusBar style="light" />
+      <PreScanModal
+        visible={showPreScan}
+        onConfirm={handlePreScanConfirm}
+        onCancel={() => nav.goBack()}
+      />
+
+      <LidarScannerView
+        ref={scannerRef}
+        style={StyleSheet.absoluteFill}
+        onScanComplete={handleScanComplete}
+        onScanProgress={handleScanProgress}
+        onBoxFit={handleBoxFit}
+      />
+
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <GlassSurface tone="dark" radius={18} style={styles.topIcon}>
+          <TouchableOpacity style={styles.glassFill} onPress={() => nav.goBack()} hitSlop={8}>
+            <Ionicons name="close" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </GlassSurface>
+        <GlassSurface tone="dark" radius={16} style={styles.topCenterGlass}>
+          <Text style={styles.topTitle} numberOfLines={1}>{topTitle}</Text>
+          <Text style={styles.topSub} numberOfLines={1}>{topSub}</Text>
+        </GlassSurface>
+        <GlassSurface tone="dark" radius={18} style={styles.topIcon}>
+          <TouchableOpacity
+            style={styles.glassFill}
+            onPress={() => setShowPreScan(true)}
+            disabled={scanning || processing}
+            hitSlop={8}
+          >
+            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </GlassSurface>
+      </View>
+
+      {/* Scan hint */}
+      {!scanning && !processing && (
+        <View style={styles.frameArea} pointerEvents="none">
+          <GlassSurface tone="dark" radius={999} style={styles.frameHintPill}>
+            <Text style={styles.frameHint}>
+              Move slowly around the {isCow ? 'animal' : 'subject'} to capture all sides
+            </Text>
+          </GlassSurface>
+        </View>
+      )}
+
+      {/* Live scan HUD — coverage, box fit status, manual adjustment */}
+      {scanning && (
+        <View
+          style={[styles.boxControls, { bottom: insets.bottom + 104 }]}
+          pointerEvents="box-none"
+        >
+          {manual ? (
+            <GlassSurface tone="dark" radius={999} style={styles.boxHintPill}>
+              <Text style={styles.boxHint}>Drag the box with one finger to move it</Text>
+            </GlassSurface>
+          ) : fit.state === 'fitting' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <ActivityIndicator color="#FFFFFF" size="small" />
+              <Text style={styles.boxHint}>Fitting the box to the animal…</Text>
+            </GlassSurface>
+          ) : fit.state === 'manual' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <Ionicons name="hand-left-outline" size={16} color={ios.accentOnDark} />
+              <Text style={styles.boxHint}>Box adjusted by hand</Text>
+            </GlassSurface>
+          ) : fit.state === 'fitted' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <Ionicons name="checkmark-circle" size={16} color={ios.accentOnDark} />
+              <Text style={styles.boxHint}>Box fitted to the animal</Text>
+            </GlassSurface>
+          ) : (
+            <GlassSurface tone="dark" radius={14} style={styles.fitWarn}>
+              <Ionicons name="alert-circle" size={16} color={ios.orange} />
+              <Text style={styles.fitWarnText}>
+                {fit.reason ? FIT_FAILURE_TEXT[fit.reason] : 'Adjust the box manually.'}
+              </Text>
+            </GlassSurface>
+          )}
+
+          <GlassSurface tone="dark" radius={20} style={styles.coverageCard}>
+            <CoverageRing
+              near={progress?.near ?? 0}
+              right={progress?.right ?? 0}
+              far={progress?.far ?? 0}
+              left={progress?.left ?? 0}
+              size={76}
+            />
+            <View style={styles.coverageText}>
+              <Text style={styles.coverageHint}>{coverageHint(progress, fit, manual)}</Text>
+              <Text style={styles.coverageMeta}>
+                {Math.round((progress?.overall ?? 0) * 100)}% covered
+                {'  ·  '}
+                {(progress?.points ?? 0).toLocaleString('en-US')} points
+              </Text>
+            </View>
+          </GlassSurface>
+
+          {manual ? (
+            <>
+              <View style={styles.boxRow}>
+                <GlassSurface tone="dark" radius={999} style={styles.stepper}>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => adjustBoxScale(-0.1)}
+                    disabled={boxScale <= 0.5}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Make the box smaller"
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={18}
+                      color={boxScale <= 0.5 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.stepperValue}>{boxScale.toFixed(1)}×</Text>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => adjustBoxScale(0.1)}
+                    disabled={boxScale >= 2.0}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Make the box bigger"
+                  >
+                    <Ionicons
+                      name="add"
+                      size={18}
+                      color={boxScale >= 2.0 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
+                    />
+                  </TouchableOpacity>
+                </GlassSurface>
+                <GlassSurface tone="dark" radius={999} style={styles.stepper}>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => rotateBox(15)}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Rotate the box left"
+                  >
+                    <Ionicons name="return-up-back" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => rotateBox(-15)}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Rotate the box right"
+                  >
+                    <Ionicons name="return-up-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </GlassSurface>
+              </View>
+              <View style={styles.boxRow}>
+                <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+                  <TouchableOpacity style={styles.recenterBtn} onPress={refitBox} hitSlop={8} activeOpacity={0.7}>
+                    <Ionicons name="scan-outline" size={16} color={ios.accentOnDark} />
+                    <Text style={styles.recenterText}>Fit to animal</Text>
+                  </TouchableOpacity>
+                </GlassSurface>
+                <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+                  <TouchableOpacity style={styles.recenterBtn} onPress={recenterBox} hitSlop={8} activeOpacity={0.7}>
+                    <Ionicons name="locate-outline" size={16} color={ios.accentOnDark} />
+                    <Text style={styles.recenterText}>Recenter</Text>
+                  </TouchableOpacity>
+                </GlassSurface>
+                <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+                  <TouchableOpacity style={styles.recenterBtn} onPress={() => setManual(false)} hitSlop={8} activeOpacity={0.7}>
+                    <Text style={styles.doneText}>Done</Text>
+                  </TouchableOpacity>
+                </GlassSurface>
+              </View>
+            </>
+          ) : (
+            <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+              <TouchableOpacity style={styles.recenterBtn} onPress={enterManual} hitSlop={8} activeOpacity={0.7}>
+                <Ionicons name="hand-left-outline" size={16} color={ios.accentOnDark} />
+                <Text style={styles.recenterText}>Adjust manually</Text>
+              </TouchableOpacity>
+            </GlassSurface>
+          )}
+        </View>
+      )}
+
+      {/* Bottom controls — Start / Stop scan */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
+        <TouchableOpacity
+          style={[
+            styles.scanBtn,
+            scanning && !coverageDone && styles.scanBtnActive,
+            processing && styles.scanBtnDisabled,
+          ]}
+          onPress={scanning ? stopScan : startScan}
+          disabled={processing}
+          activeOpacity={0.85}
+        >
+          {processing ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <>
+              <Ionicons
+                name={scanning ? (coverageDone ? 'checkmark' : 'stop') : 'scan'}
+                size={18}
+                color="#FFFFFF"
+              />
+              <Text style={styles.scanBtnText}>
+                {scanning ? (coverageDone ? 'Finish scan' : 'Stop & export') : 'Start scan'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Processing overlay */}
+      {processing && (
+        <View style={styles.overlay} pointerEvents="none">
+          <GlassSurface tone="dark" radius={20} style={styles.processingCard}>
+            <ActivityIndicator color="#FFFFFF" />
+            <Text style={styles.processingLabel}>Building mesh…</Text>
+          </GlassSurface>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+  center: {
+    flex: 1, backgroundColor: ios.systemGroupedBackground,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Permission screen
+  permWrap: {
+    flex: 1, backgroundColor: ios.systemGroupedBackground,
+    alignItems: 'center', paddingHorizontal: 32, gap: 12,
+  },
+  permIcon: {
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: ios.accentLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8,
+  },
+  permTitle: {
+    fontFamily: displayFont,
+    fontSize: 22, fontWeight: '700',
+    letterSpacing: -0.5, color: ios.label, textAlign: 'center',
+  },
+  permDesc: {
+    fontSize: 15, color: ios.secondaryLabel,
+    textAlign: 'center', letterSpacing: -0.1, lineHeight: 20,
+    paddingHorizontal: 16, marginBottom: 16,
+  },
+  permBtn: {
+    backgroundColor: ios.accent, borderRadius: 14,
+    paddingHorizontal: 32, paddingVertical: 14, minWidth: 240,
+    alignItems: 'center',
+  },
+  permBtnText: {
+    color: '#FFFFFF',
+    fontSize: 17, fontWeight: '600', letterSpacing: -0.3,
+  },
+  permSecondary: { paddingVertical: 14, alignItems: 'center' },
+  permSecondaryText: {
+    color: ios.accent, fontSize: 17, fontWeight: '500', letterSpacing: -0.3,
+  },
+
+  // Top bar over scanner
+  topBar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 12,
+  },
+  topIcon: {
+    width: 36, height: 36,
+  },
+  glassFill: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  topCenterGlass: {
+    maxWidth: '60%',
+    alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 5,
+  },
+  topTitle: {
+    fontFamily: displayFont,
+    color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: -0.2,
+  },
+  topSub: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12, marginTop: 1, letterSpacing: -0.05,
+  },
+
+  // Hint
+  frameArea: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 160,
+  },
+  frameHintPill: {
+    paddingHorizontal: 16, paddingVertical: 8,
+  },
+  frameHint: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 13, letterSpacing: -0.05,
+  },
+
+  // Box framing controls
+  boxControls: {
+    position: 'absolute', left: 0, right: 0,
+    alignItems: 'center', gap: 10,
+  },
+  boxHintPill: {
+    paddingHorizontal: 16, paddingVertical: 8,
+  },
+  boxHint: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 13, letterSpacing: -0.05,
+  },
+  boxRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  stepper: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  stepperBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepperValue: {
+    color: '#FFFFFF', fontSize: 15, fontWeight: '600',
+    letterSpacing: -0.2, minWidth: 44, textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  recenterWrap: {},
+  recenterBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, height: 36,
+  },
+  recenterText: {
+    color: ios.accentOnDark, fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
+  },
+  doneText: {
+    color: '#FFFFFF', fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
+  },
+  fitPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  fitWarn: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginHorizontal: 16, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  fitWarnText: {
+    flex: 1, color: '#FFFFFF', fontSize: 13, lineHeight: 18, letterSpacing: -0.05,
+  },
+  coverageCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginHorizontal: 16, alignSelf: 'stretch',
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  coverageText: { flex: 1, minWidth: 0, gap: 4 },
+  coverageHint: {
+    color: '#FFFFFF', fontSize: 16, fontWeight: '600', lineHeight: 21, letterSpacing: -0.2,
+  },
+  coverageMeta: {
+    color: 'rgba(255,255,255,0.72)', fontSize: 13, letterSpacing: -0.05,
+    fontVariant: ['tabular-nums'],
+  },
+
+  // Bottom controls
+  bottomBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingTop: 16,
+  },
+  scanBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: ios.accent,
+    paddingHorizontal: 36, paddingVertical: 16,
+    borderRadius: 999, minWidth: 200,
+  },
+  scanBtnActive: { backgroundColor: ios.systemRed },
+  scanBtnDisabled: { opacity: 0.6 },
+  scanBtnText: {
+    color: '#FFFFFF', fontSize: 17, fontWeight: '600', letterSpacing: -0.3,
+  },
+
+  // Processing overlay
+  overlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  processingCard: {
+    paddingHorizontal: 28, paddingVertical: 24,
+    alignItems: 'center', gap: 12,
+  },
+  processingLabel: {
+    fontSize: 15, color: '#FFFFFF', fontWeight: '500', letterSpacing: -0.2,
+  },
+
+  // Pre-scan modal
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: ios.systemGroupedBackground,
+    borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    paddingTop: 8, paddingHorizontal: 0,
+  },
+  modalHandle: {
+    width: 36, height: 5, borderRadius: 3,
+    backgroundColor: ios.opaqueSeparator,
+    alignSelf: 'center', marginBottom: 14,
+  },
+  modalTitle: {
+    fontFamily: displayFont,
+    fontSize: 22, fontWeight: '700',
+    letterSpacing: -0.5, color: ios.label,
+    paddingHorizontal: 20,
+  },
+  modalSub: {
+    fontSize: 13, color: ios.secondaryLabel,
+    marginTop: 4, letterSpacing: -0.05,
+    paddingHorizontal: 20,
+  },
+
+  sectionHeader: {
+    marginTop: 22, marginBottom: 8,
+    paddingHorizontal: 32,
+    fontSize: 13, fontWeight: '400',
+    color: ios.secondaryLabel,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  card: {
+    marginHorizontal: 16,
+    backgroundColor: ios.secondarySystemGroupedBackground,
+    borderRadius: 12, overflow: 'hidden',
+  },
+  row: {
+    minHeight: 44,
+    paddingHorizontal: 16, paddingVertical: 11,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  rowLabel: {
+    fontSize: 17, color: ios.label, letterSpacing: -0.3, width: 44,
+  },
+  rowInput: {
+    fontFamily: fonts.regular,
+    flex: 1, fontSize: 17, color: ios.label, letterSpacing: -0.3,
+    padding: 0,
+  },
+
+  chipScroll: {
+    flexDirection: 'row', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 12,
+  },
+  breedScroll: {
+    flexDirection: 'row', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 12,
+  },
+  breedChip: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#EFEFF4',
+  },
+  categoryChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  breedChipActive: { backgroundColor: ios.accent },
+  breedLabel: {
+    fontSize: 14, color: ios.label, letterSpacing: -0.1,
+  },
+  breedLabelActive: { color: '#FFFFFF', fontWeight: '600' },
+
+  confirmBtn: {
+    marginTop: 22, marginHorizontal: 16,
+    backgroundColor: ios.accent,
+    borderRadius: 14, paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+  },
+  confirmText: {
+    color: '#FFFFFF',
+    fontSize: 17, fontWeight: '600', letterSpacing: -0.3,
+  },
+  cancelBtn: { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  cancelText: {
+    color: ios.accent, fontSize: 17, fontWeight: '500', letterSpacing: -0.3,
+  },
+});

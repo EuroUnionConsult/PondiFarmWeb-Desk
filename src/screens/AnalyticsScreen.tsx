@@ -1,0 +1,450 @@
+import React, { useCallback, useState, useMemo } from 'react';
+import {
+  View, StyleSheet, Platform, Animated,
+} from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
+import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
+import { breedLabel } from '../lib/breeds';
+import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
+import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { type Palette } from '../lib/theme';
+import { listRecords, type ScanRecord } from '../lib/storage';
+import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
+import ScreenBackground from '../components/ScreenBackground';
+
+const CHART_H = 140;
+const CHART_PAD_X = 16;
+const CHART_PAD_TOP = 14;
+const CHART_PAD_BOTTOM = 28;
+const BAR_W = 22;
+
+const prettyBreed = breedLabel;
+
+export default function AnalyticsScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
+  const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
+  const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    listRecords().then(setRecords);
+    getCachedCloudAnimals().then(c => { if (c.length) setCloud(c); });  // instantâneo
+    fetchCloudAnimals().then(setCloud).catch(() => { /* mantém cache */ });
+  }, []));
+
+  const totalScans = records.length;
+  const cows = records.filter(r => r.category === 'cow');
+  const cowCount = cows.length;
+  const extraCount = totalScans - cowCount;
+
+  // Aggregate over a real geometry measurement (chest girth), never weight.
+  const girths = records.map(r => r.measurements.chest_girth_cm);
+  const avgGirth = girths.length ? girths.reduce((a, b) => a + b, 0) / girths.length : 0;
+  const maxGirth = girths.length ? Math.max(...girths) : 0;
+  const minGirth = girths.length ? Math.min(...girths) : 0;
+
+  // Breed distribution (cows only) by mean chest girth.
+  const breedMap: Record<string, number[]> = {};
+  cows.forEach(r => {
+    const breed = r.breed ?? 'default';
+    if (!breedMap[breed]) breedMap[breed] = [];
+    breedMap[breed].push(r.measurements.chest_girth_cm);
+  });
+  const breedStats = Object.entries(breedMap).map(([breed, gs]) => ({
+    breed,
+    avg: gs.reduce((a, b) => a + b, 0) / gs.length,
+    count: gs.length,
+  })).sort((a, b) => b.avg - a.avg);
+  const breedMax = breedStats.length ? Math.max(...breedStats.map(b => b.avg)) : 0;
+
+  const last7: number[] = Array(7).fill(0);
+  const now = Date.now();
+  records.forEach(r => {
+    const daysAgo = Math.floor((now - r.scannedAt) / 86400000);
+    if (daysAgo < 7) last7[6 - daysAgo]++;
+  });
+  const last7Max = Math.max(...last7, 1);
+  const last7Total = last7.reduce((a, b) => a + b, 0);
+
+  const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
+  const cloudCount = cloud.length;
+  const cloudMeanKg = cloudWeights.length ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length) : 0;
+  const cloudMinKg = cloudWeights.length ? Math.round(Math.min(...cloudWeights)) : 0;
+  const cloudMaxKg = cloudWeights.length ? Math.round(Math.max(...cloudWeights)) : 0;
+
+  // Produto = peso. Quando há animais na nuvem, o painel fala de peso (kg);
+  // sem nuvem, cai para o perímetro torácico dos scans locais.
+  const hasCloud = cloudCount > 0;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScreenBackground />
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      style={[styles.scroll, { backgroundColor: 'transparent' }]}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+    >
+      <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
+        <View>
+          <Text style={styles.title}>Analytics</Text>
+          <Text style={styles.subtitle}>
+            {hasCloud
+              ? `${cloudCount} animal${cloudCount !== 1 ? 's' : ''} · herd`
+              : totalScans === 0
+                ? 'No data yet'
+                : `${totalScans} scan${totalScans !== 1 ? 's' : ''} · all time`}
+          </Text>
+        </View>
+      </View>
+
+      {totalScans === 0 && cloudCount === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>No data to show</Text>
+          <Text style={styles.emptySub}>
+            Record a few scans to see chest girth trends, breed distribution and activity here.
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* Hero — Mean chest girth */}
+          <View style={[styles.group, { marginTop: 22 }]}>
+            <View style={styles.card}>
+              <View style={styles.hero}>
+                <Text style={styles.eyebrow}>{hasCloud ? 'Mean weight' : 'Mean chest girth'}</Text>
+                <View style={styles.valueRow}>
+                  <Text style={styles.value}>{hasCloud ? cloudMeanKg : avgGirth.toFixed(0)}</Text>
+                  <Text style={styles.valueUnit}>{hasCloud ? 'kg' : 'cm'}</Text>
+                </View>
+                <Text style={styles.heroMeta}>
+                  {hasCloud
+                    ? `Range ${cloudMinKg}–${cloudMaxKg} kg`
+                    : `Range ${minGirth.toFixed(0)}–${maxGirth.toFixed(0)} cm`}
+                </Text>
+              </View>
+              <View style={styles.heroDivider} />
+              <View style={styles.tiles}>
+                <View style={styles.tile}>
+                  <Text style={styles.tileValue}>{hasCloud ? cloudCount : totalScans}</Text>
+                  <Text style={styles.tileLabel}>{hasCloud ? 'animals' : 'scans'}</Text>
+                </View>
+                <View style={[styles.tile, styles.tileMid]}>
+                  <Text style={styles.tileValue}>{hasCloud ? cloudWeights.length : cowCount}</Text>
+                  <Text style={styles.tileLabel}>{hasCloud ? 'with weight' : 'cows'}</Text>
+                </View>
+                <View style={styles.tile}>
+                  <Text style={styles.tileValue}>{hasCloud ? totalScans : extraCount}</Text>
+                  <Text style={styles.tileLabel}>{hasCloud ? 'local scans' : 'extras'}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Activity chart */}
+          <Text style={styles.sectionHeader}>Activity</Text>
+          <View style={styles.card}>
+            <View style={styles.activityHeader}>
+              <Text style={styles.activityTitle}>Last 7 days</Text>
+              <Text style={styles.activityTotal}>{last7Total} scans</Text>
+            </View>
+            <ActivityChart values={last7} max={last7Max} now={now} />
+          </View>
+
+          {/* Mean chest girth by breed */}
+          {breedStats.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>Mean chest girth by breed</Text>
+              <View style={styles.card}>
+                {breedStats.map((b, i, arr) => {
+                  const pct = breedMax > 0 ? (b.avg / breedMax) * 100 : 0;
+                  return (
+                    <View key={b.breed}>
+                      <View style={styles.breedRow}>
+                        <View style={styles.breedTop}>
+                          <Text style={styles.breedLabel}>
+                            {prettyBreed(b.breed)}
+                            <Text style={styles.breedCount}>  · {b.count}</Text>
+                          </Text>
+                          <Text style={styles.breedValue}>{b.avg.toFixed(0)} cm</Text>
+                        </View>
+                        <View style={styles.breedTrack}>
+                          <View style={[styles.breedFill, { width: `${pct}%` as `${number}%` }]} />
+                        </View>
+                      </View>
+                      {i < arr.length - 1 && <View style={styles.rowDivider} />}
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Summary */}
+          <Text style={styles.sectionHeader}>Summary</Text>
+          <View style={styles.card}>
+            {(hasCloud
+              ? [
+                  { k: 'Max weight',   v: `${cloudMaxKg} kg` },
+                  { k: 'Min weight',   v: `${cloudMinKg} kg` },
+                  { k: 'With weight',  v: `${cloudWeights.length} / ${cloudCount}` },
+                  { k: 'Local scans',  v: `${totalScans}` },
+                ]
+              : [
+                  { k: 'Max chest girth', v: `${maxGirth.toFixed(1)} cm` },
+                  { k: 'Min chest girth', v: `${minGirth.toFixed(1)} cm` },
+                  { k: 'Cows',            v: `${cowCount} / ${totalScans}` },
+                  { k: 'Extras',          v: `${extraCount} / ${totalScans}` },
+                ]
+            ).map(({ k, v }, i, arr) => (
+              <View key={k}>
+                <View style={styles.row}>
+                  <Text style={styles.rowKey}>{k}</Text>
+                  <Text style={styles.rowVal}>{v}</Text>
+                </View>
+                {i < arr.length - 1 && <View style={styles.rowDivider} />}
+              </View>
+            ))}
+          </View>
+          <Text style={styles.sectionFooter}>
+            {hasCloud
+              ? `Weight estimated by the PondiFarm model (${WEIGHT_MODEL_VERSION}), experimental and not validated against a scale. Activity and per-breed girth come from local scans.`
+              : 'Figures computed from locally stored scans. Trend over longer windows requires backend sync.'}
+          </Text>
+        </>
+      )}
+    </Animated.ScrollView>
+      <CompactHeader title="Analytics" scrollY={scrollY} />
+    </View>
+  );
+}
+
+function ActivityChart({ values, max, now }: { values: number[]; max: number; now: number }) {
+  const { colors: ios } = useTheme();
+  const chartWidthFallback = 320; // recomputed via onLayout in real usage; static fallback for SSR / first paint
+  const [width, setWidth] = useState(chartWidthFallback);
+
+  const innerW = width - CHART_PAD_X * 2;
+  const innerH = CHART_H - CHART_PAD_TOP - CHART_PAD_BOTTOM;
+  const slot = innerW / values.length;
+  const barOffset = (slot - BAR_W) / 2;
+
+  return (
+    <View
+      style={{ width: '100%', height: CHART_H }}
+      onLayout={e => setWidth(e.nativeEvent.layout.width)}
+    >
+      <Svg width={width} height={CHART_H}>
+        {/* baseline */}
+        <Line
+          x1={CHART_PAD_X} x2={width - CHART_PAD_X}
+          y1={CHART_H - CHART_PAD_BOTTOM + 0.5}
+          y2={CHART_H - CHART_PAD_BOTTOM + 0.5}
+          stroke={ios.separator} strokeWidth={1}
+        />
+
+        {values.map((count, i) => {
+          const h = max > 0 ? (count / max) * innerH : 0;
+          const x = CHART_PAD_X + slot * i + barOffset;
+          const y = CHART_H - CHART_PAD_BOTTOM - h;
+          const dayDate = new Date(now - (6 - i) * 86400000);
+          const dayLabel = dayDate.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 1);
+
+          return (
+            <React.Fragment key={i}>
+              {/* bar */}
+              <Rect
+                x={x} y={y}
+                width={BAR_W}
+                height={Math.max(h, 3)}
+                rx={4} ry={4}
+                fill={count > 0 ? ios.accent : ios.ringTrack}
+              />
+              {/* count label above bar */}
+              {count > 0 && (
+                <SvgText
+                  x={x + BAR_W / 2} y={y - 6}
+                  fontSize={11} fontWeight="600"
+                  fill={ios.label} textAnchor="middle"
+                >
+                  {String(count)}
+                </SvgText>
+              )}
+              {/* day letter under bar */}
+              <SvgText
+                x={x + BAR_W / 2} y={CHART_H - 10}
+                fontSize={11}
+                fill={ios.secondaryLabel} textAnchor="middle"
+              >
+                {dayLabel}
+              </SvgText>
+            </React.Fragment>
+          );
+        })}
+      </Svg>
+    </View>
+  );
+}
+
+const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
+
+const makeStyles = (ios: Palette) => StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
+
+  largeTitle: { paddingHorizontal: 20, paddingBottom: 6 },
+  title: {
+    fontFamily: displayFont,
+    fontSize: 34, fontWeight: '700',
+    letterSpacing: -0.95, color: ios.label, lineHeight: 36,
+  },
+  subtitle: {
+    fontSize: 13, color: ios.tertiaryLabel,
+    marginTop: 4, letterSpacing: -0.05,
+  },
+
+  // Sections
+  group: { paddingHorizontal: 16 },
+  sectionHeader: {
+    marginTop: 28, marginBottom: 8,
+    paddingHorizontal: 32,
+    fontSize: 13, fontWeight: '400',
+    color: ios.secondaryLabel,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  sectionFooter: {
+    marginTop: 8,
+    paddingHorizontal: 32,
+    fontSize: 13, lineHeight: 18,
+    color: ios.secondaryLabel,
+    letterSpacing: -0.05,
+  },
+  card: {
+    marginHorizontal: 16,
+    backgroundColor: ios.secondarySystemGroupedBackground,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+
+  // Hero
+  hero: { padding: 22, gap: 8 },
+  eyebrow: {
+    fontSize: 13, fontWeight: '600',
+    color: ios.accent, letterSpacing: -0.05,
+  },
+  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  value: {
+    fontFamily: displayFont,
+    fontSize: 56, fontWeight: '700',
+    lineHeight: 56, letterSpacing: -2.2, color: ios.label,
+  },
+  valueUnit: {
+    fontFamily: displayFont,
+    fontSize: 22, fontWeight: '500',
+    color: ios.secondaryLabel, letterSpacing: -0.2,
+  },
+  heroMeta: {
+    fontSize: 13, color: ios.secondaryLabel,
+    marginTop: 4, letterSpacing: -0.05,
+  },
+  heroDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: ios.separator,
+  },
+
+  // Tiles inside hero card
+  tiles: { flexDirection: 'row' },
+  tile: {
+    flex: 1, alignItems: 'center',
+    paddingVertical: 14, gap: 4,
+  },
+  tileMid: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: ios.separator,
+  },
+  tileValue: {
+    fontFamily: displayFont,
+    fontSize: 24, fontWeight: '700',
+    letterSpacing: -0.6, color: ios.label,
+  },
+  tileLabel: {
+    fontSize: 11, color: ios.secondaryLabel,
+    letterSpacing: -0.05,
+  },
+
+  // Activity chart
+  activityHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6,
+  },
+  activityTitle: {
+    fontSize: 15, fontWeight: '600',
+    color: ios.label, letterSpacing: -0.2,
+  },
+  activityTotal: {
+    fontSize: 13, color: ios.secondaryLabel,
+    letterSpacing: -0.05,
+  },
+
+  // Breed bars
+  breedRow: { paddingHorizontal: 16, paddingVertical: 12, gap: 6 },
+  breedTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  breedLabel: {
+    fontSize: 15, color: ios.label, letterSpacing: -0.2,
+  },
+  breedCount: {
+    fontSize: 13, color: ios.tertiaryLabel,
+    fontWeight: '400',
+  },
+  breedValue: {
+    fontFamily: displayFont,
+    fontSize: 15, fontWeight: '600',
+    color: ios.label, letterSpacing: -0.2,
+  },
+  breedTrack: {
+    height: 6, backgroundColor: ios.ringTrack,
+    borderRadius: 3, overflow: 'hidden',
+  },
+  breedFill: {
+    height: 6, backgroundColor: ios.accentFill, borderRadius: 3,
+  },
+
+  // Summary rows
+  row: {
+    minHeight: 44,
+    paddingHorizontal: 16, paddingVertical: 11,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  rowDivider: {
+    marginLeft: 16,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: ios.separator,
+  },
+  rowKey: {
+    flex: 1,
+    fontSize: 17, color: ios.label, letterSpacing: -0.3,
+  },
+  rowVal: {
+    fontFamily: displayFont,
+    fontSize: 17, fontWeight: '500',
+    color: ios.secondaryLabel, letterSpacing: -0.3,
+  },
+
+  // Empty
+  empty: {
+    alignItems: 'center', gap: 8,
+    paddingTop: 60, paddingBottom: 40, paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 17, fontWeight: '600',
+    color: ios.label, letterSpacing: -0.3,
+  },
+  emptySub: {
+    fontSize: 13, color: ios.secondaryLabel,
+    textAlign: 'center', letterSpacing: -0.05, lineHeight: 18,
+  },
+});
