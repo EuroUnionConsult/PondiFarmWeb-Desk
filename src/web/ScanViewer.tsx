@@ -1,17 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import type { MeshFormat } from '../lib/api';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 type Mode = 'photo' | 'clay' | 'points';
 const MODES: { id: Mode; label: string }[] = [{ id: 'photo', label: 'Photo' }, { id: 'clay', label: 'Clay' }, { id: 'points', label: 'LiDAR' }];
 
+export type MeshSource = () => Promise<{ format: MeshFormat; data: ArrayBuffer }>;
+
+/** Converte os bytes da malha num objeto 3D. O PLY do scanner traz a cor de cada vértice. */
+async function toObject(format: MeshFormat, data: ArrayBuffer): Promise<THREE.Object3D> {
+  if (format === 'glb') return new Promise((ok, fail) => new GLTFLoader().parse(data, '', (g) => ok(g.scene), fail));
+  if (format === 'obj') {
+    // O OBJ do scanner não traz cor nem material: mostra-se em argila, como na app.
+    const obj = new OBJLoader().parse(new TextDecoder().decode(data));
+    obj.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.material = new THREE.MeshStandardMaterial({ color: 0xd9d2c3, roughness: 0.9, side: THREE.DoubleSide }); });
+    return obj;
+  }
+  const geo = new PLYLoader().parse(data);
+  const colored = !!geo.getAttribute('color');
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: colored, color: colored ? 0xffffff : 0xd9d2c3, roughness: 0.85, side: THREE.DoubleSide });
+  const g = new THREE.Group(); g.add(new THREE.Mesh(geo, mat)); return g;
+}
+
 /**
- * Visualizador do scan 3D (GLB) na ficha do animal: roda devagar sozinho, arrasta-se
+ * Visualizador do scan 3D na ficha do animal (PLY, OBJ ou GLB): roda devagar sozinho, arrasta-se
  * para girar e a roda do rato aproxima. Três modos: textura fotográfica, argila
  * (só a forma, como o modo «clay» da app) e pontos (o que o LiDAR mediu).
  */
-export default function ScanViewer({ src, dark }: { src: string; dark: boolean }) {
+export default function ScanViewer({ load, dark }: { load: MeshSource; dark: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ setMode: (m: Mode) => void; reset: () => void } | null>(null);
   const [mode, setMode] = useState<Mode>('photo');
@@ -39,9 +59,9 @@ export default function ScanViewer({ src, dark }: { src: string; dark: boolean }
     const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     const ro = new ResizeObserver(resize); ro.observe(el); resize();
 
-    new GLTFLoader().load(src, (gltf) => {
+    load().then(({ format, data }) => toObject(format, data)).then((obj) => {
       if (!alive) return;
-      root = gltf.scene;
+      root = obj;
       // Centra e assenta no chão; a câmara enquadra a caixa do animal.
       const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
       root.position.sub(c);
@@ -64,7 +84,7 @@ export default function ScanViewer({ src, dark }: { src: string; dark: boolean }
       home = { pos: new THREE.Vector3(r * 0.78, r * 0.32, r * 0.78), target: new THREE.Vector3(0, -size.y * 0.08, 0) };
       camera.position.copy(home.pos); controls.target.copy(home.target); controls.minDistance = r * 0.5; controls.maxDistance = r * 4;
       born = performance.now(); setState('ready');
-    }, undefined, () => { if (alive) setState('error'); });
+    }).catch(() => { if (alive) setState('error'); });
 
     api.current = {
       setMode: (m) => {
@@ -83,7 +103,7 @@ export default function ScanViewer({ src, dark }: { src: string; dark: boolean }
     };
     raf = requestAnimationFrame(tick);
     return () => { alive = false; cancelAnimationFrame(raf); ro.disconnect(); controls.dispose(); renderer.dispose(); renderer.domElement.remove(); };
-  }, [src, dark]);
+  }, [load, dark]);
 
   useEffect(() => { api.current?.setMode(mode); }, [mode, state]);
 

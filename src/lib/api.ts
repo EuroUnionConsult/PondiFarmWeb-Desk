@@ -97,6 +97,9 @@ export interface CloudAnimal {
   bodyLengthCm: number | null;
   withersHeightCm: number | null;
   notes: string | null;
+  /** Último scan válido e se tem modelo 3D na nuvem (para o visualizador da versão web). */
+  latestScanId?: string | null;
+  hasMesh?: boolean;
 }
 
 function numOrNull(v: unknown): number | null {
@@ -221,6 +224,8 @@ async function loadCloudAnimals(): Promise<CloudAnimal[]> {
         bodyLengthCm: numOrNull(s?.bodyLength),
         withersHeightCm: numOrNull(s?.withersHeight),
         notes: a.notes ?? null,
+        latestScanId: s?.id ? String(s.id) : null,
+        hasMesh: Boolean(s?.hasMesh),
       } as CloudAnimal;
   });
   // Cacheia por org (mostra instantâneo na próxima navegação).
@@ -258,6 +263,17 @@ export async function fetchAnimalScans(animalId: string): Promise<ScanPoint[]> {
     .map((s) => ({ at: Date.parse(s.scannedAt ?? s.scanned_at ?? s.createdAt), weightKg: numOrNull(s.estimatedWeight), bodyLengthCm: numOrNull(s.bodyLength) }))
     .filter((p) => Number.isFinite(p.at))
     .sort((a, b) => a.at - b.at);
+}
+
+export type MeshFormat = 'ply' | 'obj' | 'glb';
+
+/** Modelo 3D de um scan (GET /scans/{id}/mesh), com a sessão do utilizador. */
+export async function fetchScanMesh(scanId: string): Promise<{ format: MeshFormat; data: ArrayBuffer }> {
+  const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+  const res = await fetchWithTimeout(`${base}/api/v1/scans/${encodeURIComponent(scanId)}/mesh`, 30000);
+  if (!res.ok) throw new Error(`mesh HTTP ${res.status}`);
+  const fmt = (res.headers.get('X-Mesh-Format') || 'ply').toLowerCase() as MeshFormat;
+  return { format: fmt, data: await res.arrayBuffer() };
 }
 
 export async function clearCloudCache(): Promise<void> {

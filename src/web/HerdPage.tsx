@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchAnimalScans, type CloudAnimal, type ScanPoint } from '../lib/api';
+import { fetchAnimalScans, fetchScanMesh, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
 import { fmtW, type Herd } from './herd';
 import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
 import { CloudIcon, PhoneIcon, SearchIcon } from './icons';
@@ -71,21 +71,25 @@ function WeightHistory({ id }: { id: string }) {
 }
 
 /**
- * Onde está o modelo 3D do scan. Hoje o app só envia as medidas: a malha fica no
- * iPhone. Quando o servidor guardar as malhas, isto devolve o endereço delas.
- * `pf-demo-mesh` (localStorage) é só para a pré-visualização local com um scan real.
+ * De onde vem o modelo 3D do último scan: da API, quando o app já o enviou
+ * (hasMesh). `pf-demo-mesh` (localStorage) serve só a pré-visualização local.
  */
-function meshUrlFor(_a: CloudAnimal): string | null {
-  try { return localStorage.getItem('pf-demo-mesh'); } catch { return null; }
+function meshSourceFor(a: CloudAnimal): (() => Promise<{ format: MeshFormat; data: ArrayBuffer }>) | null {
+  if (a.hasMesh && a.latestScanId) { const id = a.latestScanId; return () => fetchScanMesh(id); }
+  let demo: string | null = null;
+  try { demo = localStorage.getItem('pf-demo-mesh'); } catch { /* sem storage */ }
+  if (!demo) return null;
+  const url = demo;
+  return async () => ({ format: (url.split('.').pop() ?? 'glb').toLowerCase() as MeshFormat, data: await (await fetch(url)).arrayBuffer() });
 }
 
 function Scan3D({ a }: { a: CloudAnimal }) {
   const { mode } = useTheme();
-  const src = meshUrlFor(a);
-  if (src) return <ScanViewer src={src} dark={mode === 'dark'} />;
+  const load = useMemo(() => meshSourceFor(a), [a.id, a.hasMesh, a.latestScanId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (load) return <ScanViewer load={load} dark={mode === 'dark'} />;
   return (
     <div className="pf-3d-empty"><PhoneIcon /><div><b className="w6">The 3D model is on the iPhone</b>
-      <span>The app sends the measurements to the cloud, but the 3D model of the scan stays on the phone that captured it.</span></div></div>
+      <span>This scan has no 3D model in the cloud yet. It is sent automatically the next time the iPhone that captured it syncs (app version with 3D upload).</span></div></div>
   );
 }
 
