@@ -98,7 +98,14 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
   const shown = useCountUp(w);
   const ws = weights(herd), avg = mean(ws);
   const diff = w !== null && avg !== null ? w - avg : null;
-  const lighter = w !== null && ws.length ? Math.round((ws.filter((x) => x < w).length / ws.length) * 100) : null;
+  // Percentagem dos OUTROS animais com peso que este supera (ele próprio não conta).
+  const others = Math.max(0, ws.length - 1);
+  const heavierPct = w !== null && others ? Math.round((ws.filter((x) => x < w).length / others) * 100) : null;
+  const lighterPct = w !== null && others ? Math.round((ws.filter((x) => x > w).length / others) * 100) : null;
+  const rank = heavierPct === null || lighterPct === null ? ''
+    : lighterPct === 0 ? ' · the heaviest in the herd'
+    : heavierPct === 0 ? ' · the lightest in the herd'
+    : diff !== null && diff >= 0 ? ` · heavier than ${heavierPct}% of the herd` : ` · lighter than ${lighterPct}% of the herd`;
   const lens = herd.map((x) => pos(x.bodyLengthCm)).filter((v): v is number => v !== null);
   const hts = herd.map((x) => pos(x.withersHeightCm)).filter((v): v is number => v !== null);
   return (
@@ -112,7 +119,7 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
       <div className="pf-est"><span className="lbl w7">Estimated weight</span><span className="exp w7">Experimental</span>
         <div className="num w8">{w !== null ? <>≈ {shown} <small className="w6">kg</small></> : '—'}</div>
         {diff !== null && (
-          <div className={`pf-delta w6 ${diff >= 0 ? 'up' : 'down'}`}>{diff === 0 ? 'Same as the herd mean' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} kg vs the herd mean`}{lighter !== null && (diff >= 0 ? ` · heavier than ${lighter}% of the herd` : ` · lighter than ${100 - lighter}% of the herd`)}</div>)}
+          <div className={`pf-delta w6 ${diff >= 0 ? 'up' : 'down'}`}>{diff === 0 ? 'Same as the herd mean' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} kg vs the herd mean`}{rank}</div>)}
         <p>Experimental estimate, not validated against a scale</p></div>
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>3D scan</div>
       <Scan3D a={a} />
