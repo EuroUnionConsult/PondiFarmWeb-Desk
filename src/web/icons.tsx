@@ -17,6 +17,7 @@ export const GearIcon = () => <svg viewBox="0 0 24 24" {...P}><circle cx="12" cy
 export const DesktopIcon = () => <svg viewBox="0 0 24 24" {...P}><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>;
 export const PhoneIcon = () => <svg viewBox="0 0 24 24" {...P}><rect x="6.5" y="2.5" width="11" height="19" rx="2.6" /><path d="M10.5 18.5h3" /></svg>;
 export const CloudIcon = () => <svg viewBox="0 0 24 24" {...P}><path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 10a4 4 0 0 1-.5 8z" /></svg>;
+export const HourglassIcon = () => <svg viewBox="0 0 24 24" {...P}><path d="M6.5 3h11M6.5 21h11M7.5 3c0 4.5 4.5 6 4.5 9s-4.5 4.5-4.5 9M16.5 3c0 4.5-4.5 6-4.5 9s4.5 4.5 4.5 9" /></svg>;
 export const SearchIcon = () => <svg viewBox="0 0 24 24" width="18" {...P} strokeWidth={2.2}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4-4" /></svg>;
 export const Chevron = () => <svg className="pf-chev" viewBox="0 0 24 24" {...P} strokeWidth={2.4}><path d="m9 6 6 6-6 6" /></svg>;
 export const SunIcon = () => <svg viewBox="0 0 24 24" {...P}><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" /></svg>;

@@ -53,7 +53,7 @@ export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestM
       <main className="pf-main">
         {/* key={page}: cada troca de página reinicia a animação de entrada (pf-pagein). */}
         <div className="pf-pagein" key={page}>
-          {page === 'home' && <HomePage herd={herd} members={members} openAnimal={openAnimal} goHerd={() => setPage('herd')} goAnalytics={() => setPage('analytics')} />}
+          {page === 'home' && <HomePage herd={herd} members={members} openAnimal={openAnimal} goHerd={() => setPage('herd')} goAnalytics={() => setPage('analytics')} goProfile={() => setPage('profile')} />}
           {page === 'herd' && <HerdPage herd={herd} selected={selected} setSelected={setSelected} />}
           {page === 'analytics' && <AnalyticsPage herd={herd} openAnimal={openAnimal} />}
           {page === 'profile' && <ProfilePage />}

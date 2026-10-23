@@ -6,11 +6,15 @@ import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
 import { applyThemeAttr } from './src/web/themeScan';
 import { AuthProvider, useAuth } from './src/lib/AuthContext';
 import { RootNavigator } from './src/navigation/AppNavigator';
-import OrganizationGateScreen from './src/screens/OrganizationGateScreen';
+import DesktopOrgGate from './src/web/DesktopOrgGate';
+import { AlertHost, installWebAlert } from './src/web/webAlert';
 import DesktopLogin from './src/web/DesktopLogin';
 import DeviceStage from './src/web/DeviceStage';
 import { loadDeviceMode, NARROW, type DeviceMode } from './src/web/deviceMode';
 import { CSS } from './src/web/styles';
+
+// Na web, Alert.alert não fazia nada (react-native-web): passa a abrir um diálogo.
+installWebAlert();
 
 // Entrada da versão web (Expo escolhe este ficheiro na web; o iPhone continua a usar App.tsx).
 function useNarrow() {
@@ -33,8 +37,11 @@ function WebRoot() {
   // Num ecrã estreito (um telemóvel de verdade) a app abre como no iPhone, sem moldura.
   if (narrow) return <View style={{ flex: 1 }}><RootNavigator /></View>;
   if (!token) return <DesktopLogin />;
+  // Sem organização: criar uma ou pedir entrada. À espera de aprovação entra no
+  // painel com acesso limitado (como no iPhone): aviso na Home, sem dados da
+  // organização, e abre sozinho o rebanho quando o Líder aprovar.
   if (user && user.membershipStatus === 'none') {
-    return <View style={{ flex: 1, backgroundColor: 'var(--ground)' as any, alignItems: 'center' }}><View style={{ flex: 1, width: '100%', maxWidth: 560 }}><OrganizationGateScreen /></View></View>;
+    return <DesktopOrgGate />;
   }
   return <DeviceStage initial={mode} />;
 }
@@ -52,6 +59,7 @@ export default function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <WebRoot />
+          <AlertHost />
         </AuthProvider>
       </SafeAreaProvider>
     </ThemeProvider>

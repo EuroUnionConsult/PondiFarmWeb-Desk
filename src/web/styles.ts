@@ -342,6 +342,13 @@ html, body { background: var(--ground); }
 .pf-small { font-size: 13px; color: var(--muted); margin-top: 16px; text-align: center; line-height: 1.5; }
 .pf-err { margin-top: 14px; color: var(--danger); font-size: 13.5px; }
 
+/* ---------- ecrã de organização no computador + diálogos do Alert ---------- */
+.pf-gate { align-items: stretch; padding: 24px 32px; overflow: auto; }
+.pf-dlg .acts.col { flex-direction: column-reverse; }
+.pf-wait { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px 20px; margin: 18px 0 22px; border-color: rgba(194,97,31,.35); background: rgba(194,97,31,.06); color: var(--label); font: inherit; cursor: pointer; }
+.pf-wait .ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; background: rgba(194,97,31,.14); color: var(--warnInk); } .pf-wait .ic svg { width: 21px; height: 21px; }
+.pf-wait .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; line-height: 1.45; color: var(--ink2); } .pf-wait .tx b { font-size: 15.5px; color: var(--label); }
+
 /* ---------- diálogo ---------- */
 .pf-scrim { position: fixed; inset: 0; background: rgba(18,36,52,.34); z-index: 50; display: flex; align-items: center; justify-content: center; animation: pfFade .18s ease-out; }
 .pf-dlg { width: 420px; background: var(--card); border-radius: 22px; padding: 26px 26px 20px; box-shadow: 0 30px 70px rgba(18,36,52,.3); text-align: center; animation: pfPop .26s cubic-bezier(.2,.9,.3,1.2); }

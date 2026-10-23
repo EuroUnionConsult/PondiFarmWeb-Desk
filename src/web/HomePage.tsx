@@ -2,12 +2,12 @@ import React, { useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { fmtW, type Herd } from './herd';
 import { Breeds, Histogram, Kpi, Ring, SkelChart, SkelKpis, SkelRows, mean, weights } from './charts';
-import { ChartIcon, CloudIcon, PhoneIcon } from './icons';
+import { ChartIcon, Chevron, CloudIcon, HourglassIcon, PhoneIcon } from './icons';
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 19 ? 'Good afternoon' : 'Good evening'; };
 
-export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytics }: {
-  herd: Herd; members: number | null; openAnimal: (id: string) => void; goHerd: () => void; goAnalytics: () => void;
+export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytics, goProfile }: {
+  herd: Herd; members: number | null; openAnimal: (id: string) => void; goHerd: () => void; goAnalytics: () => void; goProfile: () => void;
 }) {
   const { user } = useAuth();
   const all = herd.animals ?? [];
@@ -18,17 +18,29 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
   const synced = herd.pending === 0;
   const latest = all.slice(0, 5);
   const loading = herd.animals === null;
+  const pending = user?.membershipStatus === 'pending';
+  const pendingOrg = user?.pendingOrganizationName || 'the organization';
 
   return (
     <div className="pf-page">
       <div className="pf-top">
         <div><h1 className="w8">{greeting()}{first ? `, ${first}` : ''}</h1>
-          <div className="pf-sub">{user?.organizationName || 'Your organization'} · {herd.animals === null ? 'loading the herd…' : `${all.length} animals in the herd`}</div></div>
+          <div className="pf-sub">{pending ? pendingOrg : user?.organizationName || 'Your organization'} · {pending ? 'waiting for approval' : herd.animals === null ? 'loading the herd…' : `${all.length} animals in the herd`}</div></div>
         <div className="pf-actions">
           <button className="pf-btn l w7" onClick={goAnalytics}><ChartIcon />Analytics</button>
           <button className="pf-btn g w7" onClick={goHerd}>Open the herd</button>
         </div>
       </div>
+
+      {/* À espera do Líder: o mesmo aviso da Home do iPhone (PendingApprovalBanner). */}
+      {pending && (
+        <button className="pf-card pf-wait" onClick={goProfile} aria-label={`Waiting for approval from ${pendingOrg}. Open your profile.`}>
+          <span className="ic" aria-hidden="true"><HourglassIcon /></span>
+          <span className="tx"><b className="w7">Waiting for approval</b>
+            <span>Until the leader of {pendingOrg} approves you, you don’t see the organization’s herd. This page opens it by itself once you’re approved.</span></span>
+          <Chevron />
+        </button>
+      )}
 
       {loading ? <SkelKpis /> : (
       <div className="pf-kpis">
