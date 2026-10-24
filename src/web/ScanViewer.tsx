@@ -77,7 +77,8 @@ export default function ScanViewer({ load, dark }: { load: MeshSource; dark: boo
         for (let i = 0; i < p.count; i += 2) positions.push(p.getX(i), p.getY(i), p.getZ(i));
       });
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x58d68d, size: r / 260, sizeAttenuation: true, transparent: true, opacity: 0.85 }));
+      // Mesmo tamanho nos dois temas; no claro, um verde vivo e opaco para se destacar no fundo claro.
+      pts = new THREE.Points(g, new THREE.PointsMaterial({ color: dark ? 0x58d68d : 0x16a34a, size: r / 260, sizeAttenuation: true, transparent: dark, opacity: dark ? 0.85 : 1 }));
       pts.visible = false;
       const holder = new THREE.Group(); holder.add(root); root.add(pts);
       scene.add(holder);
