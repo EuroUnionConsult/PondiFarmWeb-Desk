@@ -4,13 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/ThemeContext';
 import { useReducedMotion } from '../lib/motion';
+import { switchThemeWithScan } from '../web/themeScan';
 
 // Interruptor de tema sol/lua (canto superior direito do Perfil). Claro: bola à
 // esquerda, sol à direita. Escuro: bola desliza para a direita, lua à esquerda.
 const W = 60, H = 32, KNOB = 26, PAD = 3;
 
 export default function ThemeToggle() {
-  const { mode, toggle } = useTheme();
+  const { mode, setMode } = useTheme();
   const dark = mode === 'dark';
   const reduced = useReducedMotion();
   const x = useRef(new Animated.Value(dark ? 1 : 0)).current;
@@ -26,7 +27,8 @@ export default function ThemeToggle() {
 
   return (
     <Pressable
-      onPress={() => { void Haptics.selectionAsync(); toggle(); }}
+      // No layout de telemóvel da web: a mesma passagem de scan do Perfil no computador.
+      onPress={(e) => { void Haptics.selectionAsync(); switchThemeWithScan(dark ? 'light' : 'dark', setMode, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }); }}
       hitSlop={8}
       accessibilityRole="switch"
       accessibilityState={{ checked: dark }}

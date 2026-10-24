@@ -71,6 +71,13 @@ html, body { background: var(--ground); }
 .pf-search { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 12px; background: rgba(118,118,128,.12); color: var(--muted); width: 380px; }
 .pf-search input { border: 0; background: none; font: inherit; font-size: 14.5px; padding: 11px 0; flex: 1; outline: none; color: var(--label); }
 .pf-sheet { width: 400px; flex: none; padding: 24px; align-self: flex-start; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow: auto; }
+.pf-sheet-name { display: flex; align-items: center; gap: 8px; }
+.pf-sexicon { display: inline-flex; width: 24px; height: 24px; } .pf-sexicon svg { width: 100%; height: 100%; stroke-width: 2.4; }
+.pf-sexicon.female, .pf-sex.female, .pf-sexpick .female.on { color: var(--warnInk); } .pf-sexicon.male, .pf-sex.male, .pf-sexpick .male.on { color: var(--navy); }
+.pf-sex { display: inline-flex; align-items: center; gap: 5px; } .pf-sex svg, .pf-sexpick svg { width: 14px; height: 14px; }
+.pf-sexpick { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--soft2); }
+.pf-sexpick button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 4px 10px; border-radius: 7px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.pf-sexpick button.on { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .pf-badge { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--green); background: var(--greenL); padding: 4px 10px; border-radius: 8px; }
 .pf-est { margin-top: 18px; border-radius: 16px; border: 1px solid var(--line); padding: 18px 20px; }
 .pf-est .lbl { font-size: 13px; color: var(--green); } .pf-est .exp { font-size: 12px; color: var(--warnInk); background: rgba(194,97,31,.12); padding: 2px 8px; border-radius: 6px; margin-left: 6px; }
@@ -232,6 +239,13 @@ html, body { background: var(--ground); }
 /* position + :has: a animação de entrada cria uma camada por linha; a linha com o menu aberto fica por cima das seguintes. */
 .pf-people .pr:has(.pf-menu) { z-index: 5; }
 .pf-people .pr { position: relative; display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line); transition: opacity .3s, transform .3s, max-height .3s, padding .3s; max-height: 90px; }
+.pf-events .ev { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.pf-events .ev:last-child, .pf-events .ev:has(+ .more) { border-bottom: 0; }
+.pf-events .tx { flex: 1; min-width: 0; color: var(--label); } .pf-events .when { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.pf-events .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--faint); }
+.pf-events .dot.approved, .pf-events .dot.created { background: var(--green); } .pf-events .dot.leader_transferred { background: var(--navy); }
+.pf-events .dot.removed, .pf-events .dot.rejected { background: var(--danger); } .pf-events .dot.left, .pf-events .dot.join_cancelled { background: var(--orange); }
+.pf-events .more { display: block; width: 100%; padding: 12px 20px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--green); font: inherit; text-align: left; cursor: pointer; }
 .pf-people .pr:last-child { border-bottom: 0; } .pf-people .pr:hover { background: var(--hover); }
 .pf-people .pr.out { opacity: 0; transform: translateX(24px); max-height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; }
 .pf-people .av { width: 40px; height: 40px; border-radius: 50%; background: var(--soft2); color: var(--ink2); display: flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
@@ -292,18 +306,19 @@ html, body { background: var(--ground); }
 
 /* ---------- troca de tema: passagem de scan ---------- */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-::view-transition-new(root) { animation: pfScanReveal 1.15s cubic-bezier(.55,.05,.3,1) both; }
-@keyframes pfScanReveal { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
-.pf-scanline { position: fixed; left: 0; right: 0; top: 0; height: 150px; z-index: 9999; pointer-events: none; view-transition-name: pf-scan;
+/* A revelação (clip-path diagonal) e a linha são animadas em themeScan.ts (Web Animations API),
+   a partir do botão do tema, com a mesma curva e o mesmo percurso. */
+.pf-scanline { position: fixed; left: 0; top: 0; height: 150px; z-index: 9999; pointer-events: none; view-transition-name: pf-scan;
   background:
     linear-gradient(180deg, rgba(61,160,92,0) 0%, rgba(61,160,92,.10) 60%, rgba(61,160,92,.28) 96%, rgba(140,255,170,.95) 98.5%, rgba(61,160,92,0) 100%),
     radial-gradient(circle, rgba(120,230,150,.55) 1px, transparent 1.6px) 0 0 / 14px 14px;
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 70%); mask-image: linear-gradient(180deg, transparent 0%, #000 70%);
-  filter: drop-shadow(0 6px 10px rgba(61,160,92,.55)); }
+  will-change: transform; }
+/* Brilho por baixo da linha só com gradiente (o drop-shadow era repintado a cada frame). */
+.pf-scanline::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 18px; background: linear-gradient(180deg, rgba(61,160,92,.35), rgba(61,160,92,0)); }
 ::view-transition-group(pf-scan) { animation: none; }
 ::view-transition-old(pf-scan) { display: none; }
-::view-transition-new(pf-scan) { animation: pfScanMove 1.15s cubic-bezier(.55,.05,.3,1) both; }
-@keyframes pfScanMove { from { transform: translateY(-150px); } to { transform: translateY(100vh); } }
+::view-transition-new(pf-scan) { animation: none; transform-origin: 0 0; }
 
 /* ---------- portáteis pequenos (1024–1279 px): menu só com ícones, cartões 2 a 2, blocos empilhados ---------- */
 .pf-table .brs { display: none; }

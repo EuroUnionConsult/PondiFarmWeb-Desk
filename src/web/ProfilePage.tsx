@@ -4,7 +4,7 @@ import { useTheme } from '../lib/ThemeContext';
 import { trackCloud } from '../lib/activity';
 import { initials, loadProfile, saveProfile, type Profile } from '../lib/profile';
 import {
-  approveRequest, cancelMyRequest, leaveOrganization, listPendingRequests, listPeople, rejectRequest,
+  approveRequest, cancelMyRequest, describeEvent, leaveOrganization, listEvents, listPendingRequests, listPeople, rejectRequest, type OrgEvent,
   removePerson, transferLeadership, type OrgPerson, type PendingJoinRequest,
 } from '../lib/orgs';
 import { SkelRows, useCountUp } from './charts';
@@ -25,7 +25,7 @@ function ThemeSwitch() {
   const dark = mode === 'dark';
   return (
     <button className={`pf-theme${dark ? ' dark' : ''}`} role="switch" aria-checked={dark} aria-label="Dark theme"
-      onClick={() => switchThemeWithScan(dark ? 'light' : 'dark', setMode)}>
+      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); switchThemeWithScan(dark ? 'light' : 'dark', setMode, { x: r.left + r.width / 2, y: r.top + r.height / 2 }); }}>
       <span className="ic sun"><SunIcon /></span><span className="ic moon"><MoonIcon /></span><span className="knob" />
       <span className="lbl w6">{dark ? 'Dark' : 'Light'}</span>
     </button>
@@ -54,6 +54,10 @@ function PersonMenu({ p, onLeader, onRemove }: { p: OrgPerson; onLeader: () => v
   );
 }
 
+// «23 Oct 2026, 14:05» (o servidor guarda em UTC; mostra-se na hora local).
+const evWhen = (iso: string) => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`)
+  .toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
 export default function ProfilePage() {
   const { user, logout, refreshMe } = useAuth();
   const orgId = user?.organizationId ?? null;
@@ -65,6 +69,8 @@ export default function ProfilePage() {
   const [first, setFirst] = useState(''), [last, setLast] = useState('');
   const [people, setPeople] = useState<OrgPerson[] | null>(null);
   const [requests, setRequests] = useState<PendingJoinRequest[]>([]);
+  const [events, setEvents] = useState<OrgEvent[]>([]);
+  const [allEvents, setAllEvents] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +86,13 @@ export default function ProfilePage() {
     if (!orgId) { setPeople([]); return; }
     setError(null);
     try {
-      const [p, r] = await trackCloud(Promise.all([listPeople(orgId), isLeader ? listPendingRequests(orgId) : Promise.resolve([] as PendingJoinRequest[])]));
-      setPeople(p); setRequests(r);
+      const [p, r, ev] = await trackCloud(Promise.all([
+        listPeople(orgId),
+        isLeader ? listPendingRequests(orgId) : Promise.resolve([] as PendingJoinRequest[]),
+        // Histórico só para o Líder; um backend sem a rota não parte o Perfil.
+        isLeader ? listEvents(orgId).catch(() => [] as OrgEvent[]) : Promise.resolve([] as OrgEvent[]),
+      ]));
+      setPeople(p); setRequests(r); setEvents(ev);
     } catch (e: any) { setError(String(e?.message ?? e)); setPeople((x) => x ?? []); }
   }, [orgId, isLeader]);
   useEffect(() => { void load(); }, [load]);
@@ -187,6 +198,20 @@ export default function ProfilePage() {
           })}
         </div>
         {isLeader && <p className="pf-foot">Use the menu next to a member to make them leader or remove them.</p>}
+      </>)}
+
+      {/* Histórico (só o Líder): entradas, saídas, remoções e mudanças de líder. */}
+      {orgId && isLeader && events.length > 0 && (<>
+        <div className="pf-sect w6">Activity</div>
+        <div className="pf-card pf-events">
+          {(allEvents ? events : events.slice(0, 6)).map((e, i) => (
+            <div key={e.id} className="ev pf-rise" style={{ animationDelay: `${i * 30}ms` }}>
+              <span className={`dot ${e.type}`} aria-hidden="true" />
+              <span className="tx">{describeEvent(e)}</span>
+              <time className="when" dateTime={e.createdAt}>{evWhen(e.createdAt)}</time>
+            </div>))}
+          {!allEvents && events.length > 6 && <button className="more w6" onClick={() => setAllEvents(true)}>Show all activity</button>}
+        </div>
       </>)}
 
       {error && <div className="pf-err" role="alert" style={{ margin: '14px 6px 0' }}>{error}</div>}

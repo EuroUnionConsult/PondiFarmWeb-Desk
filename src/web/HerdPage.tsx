@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchAnimalScans, fetchScanMesh, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
+import { canEditSex, fetchAnimalScans, fetchScanMesh, updateAnimalSex, type AnimalSex, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
+import { useAuth } from '../lib/AuthContext';
 import { fmtW, type Herd } from './herd';
 import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
-import { CloudIcon, PhoneIcon, SearchIcon } from './icons';
+import { CloudIcon, FemaleIcon, MaleIcon, PhoneIcon, SearchIcon } from './icons';
 import { useTheme } from '../lib/ThemeContext';
 import ScanViewer from './ScanViewer';
 
@@ -93,7 +94,35 @@ function Scan3D({ a }: { a: CloudAnimal }) {
   );
 }
 
+/** Sexo na ficha: todos veem; só quem criou o animal (o primeiro scan) escolhe. */
+function SexField({ a, onSaved }: { a: CloudAnimal; onSaved: () => void }) {
+  const { user } = useAuth();
+  const [sex, setSex] = useState<AnimalSex>(a.sex ?? 'unknown');
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { setSex(a.sex ?? 'unknown'); setErr(null); }, [a.id, a.sex]);
+  const editable = canEditSex(a, user);
+  const pick = (next: AnimalSex) => {
+    const target = next === sex ? 'unknown' : next;   // tocar de novo limpa
+    const before = sex;
+    setSex(target); setErr(null);
+    updateAnimalSex(a.id, target).then(() => { a.sex = target; onSaved(); }).catch((e) => { setSex(before); setErr(String(e?.message ?? e)); });
+  };
+  if (!editable) {
+    return sex === 'unknown' ? null : (
+      <span className={`pf-tag pf-sex ${sex} w6`}>{sex === 'female' ? <FemaleIcon /> : <MaleIcon />}{sex === 'female' ? 'Female' : 'Male'}</span>);
+  }
+  return (<>
+    <span className="pf-sexpick" role="radiogroup" aria-label="Sex of the animal" title="You scanned this animal, so you set its sex. Everyone sees it.">
+      {(['female', 'male'] as const).map((s) => (
+        <button key={s} role="radio" aria-checked={sex === s} className={`w6 ${s}${sex === s ? ' on' : ''}`} onClick={() => pick(s)}>
+          {s === 'female' ? <FemaleIcon /> : <MaleIcon />}{s === 'female' ? 'Female' : 'Male'}</button>))}
+    </span>
+    {err && <span className="pf-err" role="alert" style={{ width: '100%', margin: 0 }}>{err}</span>}
+  </>);
+}
+
 function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
+  const [, redraw] = useState(0);   // depois de gravar o sexo (o ícone ao lado do nome)
   const w = fmtW(a.weightKg);
   const shown = useCountUp(w);
   const ws = weights(herd), avg = mean(ws);
@@ -110,11 +139,14 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
   const hts = herd.map((x) => pos(x.withersHeightCm)).filter((v): v is number => v !== null);
   return (
     <aside className="pf-card pf-sheet pf-sheetin" aria-label={`${a.name} details`}>
-      <div className="w8" style={{ fontSize: 26, letterSpacing: -.5 }}>{a.name}</div>
+      <div className="w8 pf-sheet-name" style={{ fontSize: 26, letterSpacing: -.5 }}>{a.name}
+        {a.sex === 'female' && <span className="pf-sexicon female" aria-label="Female"><FemaleIcon /></span>}
+        {a.sex === 'male' && <span className="pf-sexicon male" aria-label="Male"><MaleIcon /></span>}</div>
       <div className="pf-tags">
         {a.breed && <span className="pf-tag w6">{a.breed}</span>}
         {a.tagCode && <span className="pf-tag w6">Tag {a.tagCode}</span>}
         <span className="pf-badge w7"><span style={{ width: 14, display: 'inline-flex' }}><CloudIcon /></span>Synced</span>
+        <SexField a={a} onSaved={() => redraw((n) => n + 1)} />
       </div>
       <div className="pf-est"><span className="lbl w7">Estimated weight</span><span className="exp w7">Experimental</span>
         <div className="num w8">{w !== null ? <>≈ {shown} <small className="w6">kg</small></> : '—'}</div>
