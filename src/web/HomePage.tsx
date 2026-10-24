@@ -1,14 +1,19 @@
 import React, { useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
+import WeatherIcon from '../components/WeatherIcon';
+import { KIND_LABEL, useWeather } from '../lib/weather';
 import { fmtW, type Herd } from './herd';
 import { Breeds, Histogram, Kpi, Ring, SkelChart, SkelKpis, SkelRows, mean, weights } from './charts';
 import { ChartIcon, Chevron, CloudIcon, HourglassIcon, PhoneIcon } from './icons';
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 19 ? 'Good afternoon' : 'Good evening'; };
 
-export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytics, goProfile }: {
-  herd: Herd; members: number | null; openAnimal: (id: string) => void; goHerd: () => void; goAnalytics: () => void; goProfile: () => void;
+export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytics, goProfile, goWeather }: {
+  herd: Herd; members: number | null; openAnimal: (id: string) => void; goHerd: () => void; goAnalytics: () => void; goProfile: () => void; goWeather: () => void;
 }) {
+  const { weather, unread } = useWeather();
+  const wxNow = weather?.location ? weather.current : undefined;
+  const topAlert = weather?.alerts?.[0];
   const { user } = useAuth();
   const all = herd.animals ?? [];
   const ws = useMemo(() => weights(all), [all]);
@@ -27,6 +32,12 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
         <div><h1 className="w8">{greeting()}{first ? `, ${first}` : ''}</h1>
           <div className="pf-sub">{pending ? pendingOrg : user?.organizationName || 'Your organization'} · {pending ? 'waiting for approval' : herd.animals === null ? 'loading the herd…' : `${all.length} animals in the herd`}</div></div>
         <div className="pf-actions">
+          {/* O tempo da quinta agora, com o aviso mais importante (abre a página do tempo). */}
+          {wxNow && (
+            <button className="pf-card pf-wxchip" onClick={goWeather} aria-label={`Weather: ${Math.round(wxNow.temp)} degrees. ${topAlert ? topAlert.title : 'No welfare alerts'}. Open the weather page.`}>
+              <WeatherIcon kind={wxNow.kind} size={30} chip dot={unread} />
+              <span><b className="w7">{Math.round(wxNow.temp)}° · {KIND_LABEL[wxNow.kind]}</b><small className={`w6${topAlert ? ' warn' : ''}`}>{topAlert ? topAlert.title : 'No welfare alerts'}</small></span>
+            </button>)}
           <button className="pf-btn l w7" onClick={goAnalytics}><ChartIcon />Analytics</button>
           <button className="pf-btn g w7" onClick={goHerd}>Open the herd</button>
         </div>

@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
 import { applyThemeAttr } from './src/web/themeScan';
+import { WeatherProvider } from './src/lib/weather';
 import { AuthProvider, useAuth } from './src/lib/AuthContext';
 import { RootNavigator } from './src/navigation/AppNavigator';
 import DesktopOrgGate from './src/web/DesktopOrgGate';
@@ -58,7 +59,9 @@ export default function App() {
     <ThemeProvider>
       <SafeAreaProvider>
         <AuthProvider>
-          <WebRoot />
+          <WeatherProvider>
+            <WebRoot />
+          </WeatherProvider>
           <AlertHost />
         </AuthProvider>
       </SafeAreaProvider>

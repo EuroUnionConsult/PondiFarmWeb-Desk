@@ -9,6 +9,8 @@ import {
 } from '../lib/orgs';
 import { SkelRows, useCountUp } from './charts';
 import SettingsPage, { Confirm } from './SettingsPage';
+import FarmLocationDialog from './FarmLocationDialog';
+import { useWeather } from '../lib/weather';
 import { switchThemeWithScan } from './themeScan';
 import { Chevron, DotsIcon, GearIcon, MoonIcon, PenIcon, SunIcon } from './icons';
 
@@ -71,6 +73,9 @@ export default function ProfilePage() {
   const [requests, setRequests] = useState<PendingJoinRequest[]>([]);
   const [events, setEvents] = useState<OrgEvent[]>([]);
   const [allEvents, setAllEvents] = useState(false);
+  const { weather } = useWeather();
+  const farm = weather?.location ?? null;
+  const [locOpen, setLocOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +160,12 @@ export default function ProfilePage() {
             <span className={`pf-role w7${isPending ? ' pending' : ''}`}>{isPending ? 'Waiting for approval' : isLeader ? 'Leader' : user?.role ? 'Member' : 'Not available yet'}</span>
             {orgId && <span className="pf-sub" style={{ margin: 0 }}><b className="w8" style={{ color: 'var(--label)' }}>{members ?? '—'}</b> {people?.length === 1 ? 'member' : 'members'}</span>}
           </div>
+          {orgId && !isPending && (
+            <div className="pf-farmloc">
+              <span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z" /><circle cx="12" cy="9" r="2.5" /></svg></span>
+              <span><small>Farm location</small><b className="w6">{farm?.label ?? (farm ? `${farm.lat.toFixed(2)}, ${farm.lon.toFixed(2)}` : 'Not set')}</b></span>
+              {isLeader && <button className="pf-link w6" onClick={() => setLocOpen(true)}>{farm ? 'Change' : 'Set'}</button>}
+            </div>)}
           {isPending && (<>
             <p className="pf-sub">Until the leader approves you, you don't see the organization's herd. Your scans are sent automatically once you're approved.</p>
             <button className="pf-btn r-l w7" onClick={() => setAsk({ title: 'Cancel your request?', body: 'You can ask to join again later.', action: 'Cancel request', run: () => act('cancel', cancelMyRequest, true) })}>Cancel request</button>
@@ -215,6 +226,7 @@ export default function ProfilePage() {
       </>)}
 
       {error && <div className="pf-err" role="alert" style={{ margin: '14px 6px 0' }}>{error}</div>}
+      {locOpen && <FarmLocationDialog onClose={() => setLocOpen(false)} />}
 
       <div className="pf-sect w6">Account</div>
       <div className="pf-card pf-acct">

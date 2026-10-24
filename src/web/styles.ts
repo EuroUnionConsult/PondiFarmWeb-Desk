@@ -360,6 +360,47 @@ html, body { background: var(--ground); }
 /* ---------- ecrã de organização no computador + diálogos do Alert ---------- */
 .pf-gate { align-items: stretch; padding: 24px 32px; overflow: auto; }
 .pf-dlg .acts.col { flex-direction: column-reverse; }
+/* ---------- tempo e bem-estar ---------- */
+.pf-wxnav { position: relative; } .pf-wxnav .wxi { width: 21px; height: 21px; display: grid; place-items: center; flex: none; } .pf-wxnav .wxi svg { width: 21px; height: 21px; }
+.pf-wxnav small { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.pf-wxchip { display: flex; align-items: center; gap: 12px; padding: 6px 16px 6px 6px; border-radius: 16px; font: inherit; color: var(--label); cursor: pointer; text-align: left; }
+.pf-wxchip b { display: block; font-size: 14.5px; } .pf-wxchip small { font-size: 12.5px; color: var(--muted); } .pf-wxchip small.warn { color: var(--warnInk); }
+.pf-wx-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.25fr; gap: 16px; }
+.pf-wx-now, .pf-wx-thi { padding: 22px 24px; }
+.pf-wx-now .k, .pf-wx-thi .k, .pf-wx-season .k { font-size: 13px; color: var(--green); }
+.pf-wx-now .t { font-size: 56px; letter-spacing: -2px; line-height: 1; display: flex; align-items: center; gap: 12px; margin: 8px 0 6px; }
+.pf-wx-now .t small { font-size: 22px; color: var(--muted); letter-spacing: 0; margin: 4px 0 0 -8px; align-self: flex-start; }
+.pf-wx-now .cond { font-size: 15px; color: var(--ink2); } .pf-wx-now .facts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--muted); } .pf-wx-now .facts b { color: var(--label); }
+.pf-wx-thi .k { display: flex; justify-content: space-between; align-items: center; } .pf-wx-thi .v { font-size: 44px; letter-spacing: -1.5px; margin: 8px 0 4px; }
+.band { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 7px; }
+.band.normal { background: var(--greenL); color: var(--green); } .band.alert { background: rgba(194,97,31,.12); color: var(--warnInk); } .band.danger { background: var(--dangerBg); color: var(--danger); } .band.emergency { background: var(--danger); color: #fff; }
+.pf-wx-thi .scale { display: flex; height: 8px; border-radius: 6px; overflow: hidden; margin: 16px 0 6px; } .pf-wx-thi .scale span { flex: 1; }
+.pf-wx-thi .scale .n { background: var(--green); opacity: .55; } .pf-wx-thi .scale .a { background: var(--orange); opacity: .6; flex: .55; } .pf-wx-thi .scale .d { background: var(--danger); opacity: .65; flex: .7; } .pf-wx-thi .scale .e { background: var(--danger); flex: .8; }
+.pf-wx-thi .mk { position: relative; height: 0; } .pf-wx-thi .mk i { position: absolute; top: -18px; width: 3px; height: 14px; border-radius: 2px; background: var(--label); transform: translateX(-50%); }
+.pf-wx-thi .lbls { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); } .pf-wx-thi p { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; line-height: 1.5; }
+.pf-wx-alerts { padding: 6px 0; } .pf-wx-alerts .al { display: flex; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line); align-items: flex-start; } .pf-wx-alerts .al:last-child { border-bottom: 0; }
+.pf-wx-alerts .ic { width: 38px; height: 38px; border-radius: 11px; flex: none; display: grid; place-items: center; background: rgba(37,99,168,.12); color: #2563A8; } .pf-wx-alerts .ic svg { width: 20px; height: 20px; }
+.pf-wx-alerts .ic.heat { background: rgba(194,97,31,.12); color: var(--warnInk); } .pf-wx-alerts .ic.danger { background: var(--dangerBg); color: var(--danger); } .pf-wx-alerts .ic.ok { background: var(--greenL); color: var(--green); } .pf-wx-alerts .ic.cold { color: var(--navy); }
+.pf-wx-alerts b { display: block; font-size: 15px; margin-bottom: 3px; } .pf-wx-alerts span { font-size: 13px; color: var(--ink2); line-height: 1.45; } .pf-wx-alerts .when { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+.pf-wx-chart { padding: 18px 20px 12px; } .pf-wx-chart .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
+.pf-wx-chart .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; } .pf-wx-chart .legend i.al { background: rgba(194,97,31,.14); outline: 1px solid var(--orange); } .pf-wx-chart .legend i.dg { background: var(--dangerBg); outline: 1px solid var(--danger); }
+.pf-wx-chart .svg { width: 100%; height: 230px; display: block; overflow: visible; } .pf-wx-chart rect.al { fill: rgba(194,97,31,.12); } .pf-wx-chart rect.dg { fill: var(--dangerBg); }
+.pf-wx-chart .grid { stroke: var(--line); stroke-dasharray: 3 4; } .pf-wx-chart .ax { font-size: 11px; fill: var(--muted); } .pf-wx-chart .area { fill: var(--green); opacity: .08; } .pf-wx-chart .line { fill: none; stroke: var(--green); stroke-width: 2.5; stroke-linejoin: round; } .pf-wx-chart .dot { fill: var(--card); stroke: var(--green); stroke-width: 2.5; }
+.pf-wx-row { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+.pf-wx-week { display: grid; grid-template-columns: repeat(7, 1fr); } .pf-wx-week .wd { padding: 14px 8px; text-align: center; border-right: 1px solid var(--line); } .pf-wx-week .wd:last-child { border-right: 0; }
+.pf-wx-week .d { font-size: 13px; color: var(--muted); } .pf-wx-week .ic { display: flex; justify-content: center; margin: 8px 0; } .pf-wx-week .mx { font-size: 17px; } .pf-wx-week .mn { font-size: 13px; color: var(--muted); } .pf-wx-week .p { font-size: 12px; color: #2563A8; margin-top: 4px; min-height: 15px; }
+.pf-wx-season { padding: 22px 24px; } .pf-wx-season .big { display: flex; gap: 22px; margin: 12px 0 10px; } .pf-wx-season .big div { font-size: 13px; color: var(--muted); } .pf-wx-season .big b { display: block; font-size: 38px; letter-spacing: -1px; }
+.pf-wx-season .big .a b { color: var(--warnInk); } .pf-wx-season .big .d b { color: var(--danger); } .pf-wx-season p { font-size: 13px; color: var(--ink2); line-height: 1.5; margin: 0; }
+.pf-wx-empty { padding: 34px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; max-width: 560px; } .pf-wx-empty .ic { width: 52px; height: 52px; border-radius: 16px; background: var(--greenL); color: var(--green); display: grid; place-items: center; } .pf-wx-empty .ic svg { width: 26px; height: 26px; }
+.pf-wx-empty b { font-size: 18px; } .pf-wx-empty p { color: var(--muted); font-size: 14px; margin: 0 0 6px; line-height: 1.5; }
+.pf-dlg.pf-locdlg { width: min(680px, calc(100vw - 48px)); text-align: left; } .pf-locbar { display: flex; gap: 10px; margin: 16px 0 12px; } .pf-locbar .pf-btn { white-space: nowrap; }
+.pf-locsearch { position: relative; flex: 1; } .pf-locsearch input { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--ctl); background: var(--card); font: inherit; font-size: 14.5px; color: var(--label); }
+.pf-locres { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 1000; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.12); overflow: hidden; }
+.pf-locres button { display: block; width: 100%; text-align: left; padding: 10px 14px; border: 0; background: none; font: inherit; font-size: 14px; color: var(--label); cursor: pointer; } .pf-locres button:hover { background: var(--hover); }
+.pf-locpick { margin-top: 12px; } .pf-locpick b { display: block; font-size: 15.5px; } .pf-locpick span { font-size: 12.5px; color: var(--muted); }
+.pf-pin { background: none; border: 0; }
+.pf-farmloc { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .pf-farmloc .ic { width: 30px; height: 30px; border-radius: 9px; background: var(--greenL); color: var(--green); display: grid; place-items: center; flex: none; } .pf-farmloc .ic svg { width: 17px; height: 17px; }
+.pf-farmloc small { display: block; font-size: 12px; color: var(--muted); } .pf-farmloc b { font-size: 14px; } .pf-farmloc .pf-link { margin-left: auto; }
 .pf-wait { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px 20px; margin: 18px 0 22px; border-color: rgba(194,97,31,.35); background: rgba(194,97,31,.06); color: var(--label); font: inherit; cursor: pointer; }
 .pf-wait .ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; background: rgba(194,97,31,.14); color: var(--warnInk); } .pf-wait .ic svg { width: 21px; height: 21px; }
 .pf-wait .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; line-height: 1.45; color: var(--ink2); } .pf-wait .tx b { font-size: 15.5px; color: var(--label); }
