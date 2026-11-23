@@ -1,11 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { canEditSex, fetchAnimalScans, fetchScanMesh, updateAnimalSex, type AnimalSex, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { canEditSex, fetchAnimalScans, fetchScanHistory, type ScanHistoryData, fetchScanMesh, updateAnimalSex, type AnimalSex, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
 import { useAuth } from '../lib/AuthContext';
 import { fmtW, type Herd } from './herd';
 import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
 import { CloudIcon, FemaleIcon, MaleIcon, PhoneIcon, SearchIcon } from './icons';
 import { useTheme } from '../lib/ThemeContext';
-import ScanViewer from './ScanViewer';
+import type { MeshSource } from './ScanViewer';
+import { fmtScanDate, fmtScanTime, growthSummary, measureDeltas, shrunk, weatherDiffers, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
+
+// three.js só se descarrega ao abrir uma ficha com modelo 3D (pedaço próprio do bundle).
+const ScanViewer = lazy(() => import('./ScanViewer'));
 
 type Sort = 'name' | 'heavy' | 'light';
 const SORTS: { id: Sort; label: string }[] = [{ id: 'name', label: 'Name' }, { id: 'heavy', label: 'Heaviest' }, { id: 'light', label: 'Lightest' }];
@@ -71,11 +75,101 @@ function WeightHistory({ id }: { id: string }) {
   );
 }
 
+const scanHistCache = new Map<string, ScanHistoryData>();
+
+/** Scans do animal: o mais recente em destaque, os anteriores numa lista (com o tempo). */
+function ScanHistoryPanel({ id }: { id: string }) {
+  const [data, setData] = useState<ScanHistoryData | null>(scanHistCache.get(id) ?? null);
+  const [failed, setFailed] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  useEffect(() => {
+    setOpenId(null);
+    if (scanHistCache.has(id)) { setData(scanHistCache.get(id) ?? null); return; }
+    let alive = true;
+    setData(null); setFailed(false);
+    fetchScanHistory(id).then((d) => { scanHistCache.set(id, d); if (alive) setData(d); }).catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [id]);
+  if (failed) return <div className="pf-sub">The scan history could not be loaded.</div>;
+  if (!data) return <SkelRows n={3} />;
+  const scans = data.scans.filter((x) => x.weightKg != null && x.weightKg > 0);
+  if (!scans.length) return <div className="pf-sub">No scans with a weight yet.</div>;
+  const n = scans.length, latest = scans[n - 1];
+  const shown = scans.find((x) => x.id === openId) ?? latest;
+  const i = scans.indexOf(shown), prev = scans[i - 1], isOld = shown !== latest;
+  const d = weightDelta(shown, prev), kg = Math.round(shown.weightKg as number);
+  const wl = weatherLine(data.weather[shown.id]);
+  const muted = { color: 'var(--muted)', fontSize: 13 } as const;
+  return (
+    <div className="pf-card" style={{ padding: 16 }}>
+      {isOld && (
+        <div role="status" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', padding: '8px 10px', borderRadius: 10, background: 'var(--soft)', marginBottom: 10 }}>
+          <span className="w6">Previous scan · {i + 1} of {n} · not the current one</span>
+          <button type="button" className="pf-link w6" onClick={() => setOpenId(null)} style={{ background: 'none', border: 0, color: 'var(--green)', cursor: 'pointer', padding: 0 }}>Back to latest</button>
+        </div>)}
+      <div style={muted}>{isOld ? 'Scan of' : 'Latest scan'} · {fmtScanDate(shown.at)}, {fmtScanTime(shown.at)}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+        <span className="w8" style={{ fontSize: 26 }}>≈ {kg} kg</span><span style={{ color: 'var(--muted)' }}>± {weightMargin(kg)}</span>
+        <span className="pf-tag w6">Experimental</span></div>
+      {d && <div className={`pf-delta w6 ${d.withinMargin ? '' : d.kg >= 0 ? 'up' : 'down'}`} style={{ marginTop: 6 }}>
+        {d.kg >= 0 ? '+' : '−'}{Math.abs(d.kg)} kg vs previous scan{d.withinMargin ? ' · within margin' : ''}</div>}
+      {isOld && <div style={muted}>Today: ≈ {Math.round(latest.weightKg as number)} kg ± {weightMargin(latest.weightKg as number)}</div>}
+      <div style={{ marginTop: 8, fontSize: 13.5 }}>
+        {!data.hasLocation ? 'Set the farm location to see weather' : data.weatherFailed ? 'Weather unavailable right now' : wl ? `Weather at scan: ${wl}` : 'No weather data for this scan yet'}</div>
+      {isOld && data.hasLocation && !data.weatherFailed && (() => {
+        const a = data.weather[shown.id], b = data.weather[latest.id];
+        const rows: [string, (x?: typeof a) => string][] = [
+          ['Temperature', (x) => (x?.tempC != null ? `${Math.round(x.tempC)} °C` : '—')],
+          ['Humidity', (x) => (x?.humidity != null ? `${Math.round(x.humidity)} %` : '—')],
+          ['THI', (x) => (x?.thi != null ? `${Math.round(x.thi)}${x.heatStress ? ' · heat stress' : ''}` : '—')],
+          ['Rain 24 h', (x) => (x?.rain24hMm != null ? `${x.rain24hMm} mm` : '—')]];
+        return (<>
+          <table className="pf-histtbl"><thead><tr><th /><th>Then</th><th>Latest</th></tr></thead>
+            <tbody>{rows.map(([l, f]) => <tr key={l}><td>{l}</td><td>{f(a)}</td><td>{f(b)}</td></tr>)}</tbody></table>
+          {weatherDiffers(a, b) && <div style={{ color: 'var(--orange)', fontSize: 13, marginTop: 4 }}>The weather was very different. Compare with care.</div>}
+        </>);
+      })()}
+      <table className="pf-histtbl"><thead><tr><th>Measurements</th><th>{isOld ? 'Then' : 'Now'}</th><th>{isOld ? 'Latest' : 'Since previous'}</th></tr></thead>
+        <tbody>{measureDeltas(shown, isOld ? latest : prev).map((m) => (
+          <tr key={m.label}><td>{m.label}</td><td>{m.now != null ? `${Math.round(m.now)} cm` : '—'}</td>
+            <td>{isOld ? (m.before != null ? `${Math.round(m.before)} cm` : '—') : m.diff != null ? `${m.diff >= 0 ? '+' : '−'}${Math.abs(m.diff)} cm` : '—'}</td></tr>))}</tbody></table>
+      {shrunk(shown, prev) && <div style={{ color: 'var(--orange)', fontSize: 13, marginTop: 6 }}>Check this scan. It may have been taken in a different pose.</div>}
+      {n > 1 && <>
+        <div className="w6" style={{ ...muted, marginTop: 16, marginBottom: 4 }}>Previous scans</div>
+        {scans.slice(0, -1).reverse().map((x) => {
+          const line = weatherLine(data.weather[x.id]);
+          return (
+            <button type="button" key={x.id} onClick={() => setOpenId(x.id)} aria-pressed={x.id === shown.id}
+              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 10, padding: '9px 6px', border: 0, borderTop: '1px solid var(--line)', background: x.id === shown.id ? 'var(--sel)' : 'transparent', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: 'block' }}>{fmtScanDate(x.at)} · {fmtScanTime(x.at)}</span>
+                {line && <span style={{ ...muted, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{line}</span>}</span>
+              <span className="w6">{Math.round(x.weightKg as number)} kg</span>
+            </button>);
+        })}
+      </>}
+      {n > 1 && <>
+        <div className="w6" style={{ ...muted, marginTop: 16, marginBottom: 4 }}>Growth & weather</div>
+        <div style={{ fontSize: 14 }}>{growthSummary(scans[0], latest, n)}</div>
+        {data.hasLocation && data.intervals.length > 0 && (
+          <table className="pf-histtbl"><thead><tr><th>Between scans</th><th>Avg max</th><th>Heat days</th><th>Rain</th></tr></thead>
+            <tbody>{data.intervals.map((iv) => {
+              const a = scans.find((p) => p.id === iv.fromScanId), b = scans.find((p) => p.id === iv.toScanId);
+              if (!a || !b) return null;
+              const dm = (t: number) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              return <tr key={iv.fromScanId}><td>{dm(a.at)}–{dm(b.at)}</td><td>{iv.avgMaxTempC != null ? `${Math.round(iv.avgMaxTempC)} °C` : '—'}</td><td>{iv.heatDays ?? '—'}</td><td>{iv.rainMm != null ? `${Math.round(iv.rainMm)} mm` : '—'}</td></tr>;
+            })}</tbody></table>)}
+        <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'var(--soft)', fontSize: 13 }}>
+          <b className="w6">How sure is this?</b><br />Measurements are more stable than weight. Weight is an estimate of ± 10 % today; it is being calibrated with scale weights at farm visits.</div>
+      </>}
+    </div>
+  );
+}
+
 /**
  * De onde vem o modelo 3D do último scan: da API, quando o app já o enviou
  * (hasMesh). `pf-demo-mesh` (localStorage) serve só a pré-visualização local.
  */
-function meshSourceFor(a: CloudAnimal): (() => Promise<{ format: MeshFormat; data: ArrayBuffer }>) | null {
+function meshSourceFor(a: CloudAnimal): MeshSource | null {
   if (a.hasMesh && a.latestScanId) { const id = a.latestScanId; return () => fetchScanMesh(id); }
   let demo: string | null = null;
   try { demo = localStorage.getItem('pf-demo-mesh'); } catch { /* sem storage */ }
@@ -87,7 +181,7 @@ function meshSourceFor(a: CloudAnimal): (() => Promise<{ format: MeshFormat; dat
 function Scan3D({ a }: { a: CloudAnimal }) {
   const { mode } = useTheme();
   const load = useMemo(() => meshSourceFor(a), [a.id, a.hasMesh, a.latestScanId]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (load) return <ScanViewer load={load} dark={mode === 'dark'} />;
+  if (load) return <Suspense fallback={<Skel h={300} r={16} />}><ScanViewer load={load} dark={mode === 'dark'} /></Suspense>;
   return (
     <div className="pf-3d-empty"><PhoneIcon /><div><b className="w6">The 3D model is on the iPhone</b>
       <span>This scan has no 3D model in the cloud yet. It is sent automatically the next time the iPhone that captured it syncs (app version with 3D upload).</span></div></div>
@@ -155,6 +249,8 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
         <p>Experimental estimate, not validated against a scale</p></div>
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>3D scan</div>
       <Scan3D a={a} />
+      <div className="pf-sect w6" style={{ marginLeft: 2 }}>Scans</div>
+      <ScanHistoryPanel id={a.id} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Weight over time</div>
       <WeightHistory id={a.id} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Compared with the herd</div>
