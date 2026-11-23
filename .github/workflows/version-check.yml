@@ -34,9 +34,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag=$(gh release view --repo EuroUnionConsult/PondiFarmApp --json tagName -q .tagName 2>/dev/null || true)
-          echo "ref=${tag:-main}" >> "$GITHUB_OUTPUT"
-          echo "PondiFarmApp ref: ${tag:-main}"
+          # Só aceita uma tag de versão; qualquer outra coisa volta à main.
+          [[ "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || tag=main
+          echo "ref=${tag}" >> "$GITHUB_OUTPUT"
+          echo "PondiFarmApp ref: ${tag}"
 
       # O script só usa módulos do Node: não precisa de npm ci.
       - name: Compare versions
-        run: npm run version:check -- --ref=${{ steps.app.outputs.ref }}
+        env:
+          APP_REF: ${{ steps.app.outputs.ref }}
+        run: npm run version:check -- --ref="$APP_REF"
