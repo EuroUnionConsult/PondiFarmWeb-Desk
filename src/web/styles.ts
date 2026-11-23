@@ -427,4 +427,24 @@ html, body { background: var(--ground); }
 .pf-back { position: fixed; right: 36px; top: 30px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); z-index: 5; border: 0; background: none; padding: 0; }
 .pf-back .pf-dev { pointer-events: none; }
 .pf-caption { position: fixed; left: 0; right: 0; bottom: 20px; text-align: center; font-size: 13.5px; color: var(--muted); }
+/* What's new — «Árvore por área»: 4 colunas, ramo à esquerda, selo da versão (verde = versão instalada). */
+.pf-wn-back { display: inline-block; margin: 0 0 10px 2px; }
+.pf-wn-seg { display: flex; background: rgba(118,118,128,.12); border-radius: 12px; padding: 3px; flex-shrink: 0; }
+.pf-wn-seg button { border: 0; background: none; padding: 8px 14px; font-size: 14px; color: var(--ink2); border-radius: 10px; white-space: nowrap; }
+.pf-wn-seg button.on { background: var(--thumb); color: var(--label); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.pf-wn-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 24px; align-items: start; }
+@media (max-width: 1100px) { .pf-wn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pf-wn-col { padding: 18px 18px 20px; min-width: 0; }
+.pf-wn-col h2 { display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 0 0 14px; color: var(--label); }
+.pf-wn-col h2 .ic { width: 30px; height: 30px; border-radius: 9px; background: var(--greenL); color: var(--green); display: flex; align-items: center; justify-content: center; } .pf-wn-col h2 .ic svg { width: 18px; }
+.pf-wn-branch { list-style: none; margin: 0 0 0 14px; padding: 2px 0; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.pf-wn-branch li { position: relative; display: flex; align-items: flex-start; gap: 8px; padding-left: 16px; font-size: 14.5px; line-height: 1.45; color: var(--label); }
+.pf-wn-branch li::before { content: ''; position: absolute; left: 0; top: 10px; width: 10px; height: 2px; background: var(--line); }
+.pf-wn-branch .tx { min-width: 0; overflow-wrap: anywhere; }
+.pf-wn-badge { flex-shrink: 0; min-width: 52px; text-align: center; font-size: 12px; border-radius: 7px; padding: 2px 7px; margin-top: 1px; background: #E3EBF3; color: #1B3A57; }
+:root[data-theme="dark"] .pf-wn-badge { background: rgba(141,179,216,.16); color: #8DB3D8; }
+.pf-wn-badge.new, :root[data-theme="dark"] .pf-wn-badge.new { background: #2D7D46; color: #FFFFFF; }
+.pf-wn-empty { margin: 0 0 0 4px; font-size: 13.5px; color: var(--muted); }
+.pf-wn-legend { display: flex; align-items: center; gap: 8px; } .pf-wn-legend .sw { width: 10px; height: 10px; border-radius: 3px; background: #2D7D46; }
+.pf-newdot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
 `;

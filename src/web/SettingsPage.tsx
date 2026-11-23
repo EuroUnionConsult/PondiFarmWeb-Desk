@@ -90,7 +90,7 @@ function BrowserPanel({ embedded }: { embedded?: boolean }) {
   );
 }
 
-function AboutPanel() {
+function AboutPanel({ goWhatsNew }: { goWhatsNew?: () => void }) {
   const rows = [
     ['Application', 'PondiFarm for desktop'],
     ['Version', APP_VERSION],
@@ -100,14 +100,15 @@ function AboutPanel() {
   ];
   return (
     <>
-      <div className="pf-card pf-set">{rows.map(([k, v]) => <div key={k} className="row"><span>{k}</span><span className="val">{v}</span></div>)}</div>
+      <div className="pf-card pf-set">{rows.map(([k, v]) => <div key={k} className="row"><span>{k}</span><span className="val">{v}</span></div>)}
+        {goWhatsNew && <div className="row"><span>What's new</span><button className="pf-link w6" onClick={goWhatsNew}>See what's new in {APP_VERSION}</button></div>}</div>
       <p className="pf-foot">PondiFarm · Euro Union Consult, Lda. Pilot build: weight estimates are experimental.</p>
     </>
   );
 }
 
 /** `embedded`: dentro do Perfil (sem título de página nem «Sign out» repetido). */
-export default function SettingsPage({ embedded }: { embedded?: boolean }) {
+export default function SettingsPage({ embedded, goWhatsNew }: { embedded?: boolean; goWhatsNew?: () => void }) {
   const [sec, setSec] = useState<Section>('cloud');
   const i = SECTIONS.findIndex((s) => s.id === sec);
   const onKey = (e: React.KeyboardEvent) => {
@@ -130,7 +131,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
           <h2 className="w8">{current.label}</h2>
           {sec === 'cloud' && <CloudPanel />}
           {sec === 'browser' && <BrowserPanel embedded={embedded} />}
-          {sec === 'about' && <AboutPanel />}
+          {sec === 'about' && <AboutPanel goWhatsNew={goWhatsNew} />}
         </section>
       </div>
   );
