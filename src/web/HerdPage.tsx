@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { canEditSex, fetchAnimalScans, fetchScanMesh, updateAnimalSex, type AnimalSex, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
+import { canEditSex, fetchAnimalScans, fetchScanHistory, type ScanHistoryData, fetchScanMesh, updateAnimalSex, type AnimalSex, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
 import { useAuth } from '../lib/AuthContext';
 import { fmtW, type Herd } from './herd';
 import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
 import { CloudIcon, FemaleIcon, MaleIcon, PhoneIcon, SearchIcon } from './icons';
 import { useTheme } from '../lib/ThemeContext';
 import ScanViewer from './ScanViewer';
+import { fmtScanDate, fmtScanTime, shrunk, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
 
 type Sort = 'name' | 'heavy' | 'light';
 const SORTS: { id: Sort; label: string }[] = [{ id: 'name', label: 'Name' }, { id: 'heavy', label: 'Heaviest' }, { id: 'light', label: 'Lightest' }];
@@ -67,6 +68,65 @@ function WeightHistory({ id }: { id: string }) {
           </g>))}
       </svg>
       <div className="pf-hist-axis"><span>{fmtDate(t0)}</span><span>{fmtDate(t1)}</span></div>
+    </div>
+  );
+}
+
+const scanHistCache = new Map<string, ScanHistoryData>();
+
+/** Scans do animal: o mais recente em destaque, os anteriores numa lista (com o tempo). */
+function ScanHistoryPanel({ id }: { id: string }) {
+  const [data, setData] = useState<ScanHistoryData | null>(scanHistCache.get(id) ?? null);
+  const [failed, setFailed] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  useEffect(() => {
+    setOpenId(null);
+    if (scanHistCache.has(id)) { setData(scanHistCache.get(id) ?? null); return; }
+    let alive = true;
+    setData(null); setFailed(false);
+    fetchScanHistory(id).then((d) => { scanHistCache.set(id, d); if (alive) setData(d); }).catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [id]);
+  if (failed) return <div className="pf-sub">The scan history could not be loaded.</div>;
+  if (!data) return <SkelRows n={3} />;
+  const scans = data.scans.filter((x) => x.weightKg != null && x.weightKg > 0);
+  if (!scans.length) return <div className="pf-sub">No scans with a weight yet.</div>;
+  const n = scans.length, latest = scans[n - 1];
+  const shown = scans.find((x) => x.id === openId) ?? latest;
+  const i = scans.indexOf(shown), prev = scans[i - 1], isOld = shown !== latest;
+  const d = weightDelta(shown, prev), kg = Math.round(shown.weightKg as number);
+  const wl = weatherLine(data.weather[shown.id]);
+  const muted = { color: 'var(--muted)', fontSize: 13 } as const;
+  return (
+    <div className="pf-card" style={{ padding: 16 }}>
+      {isOld && (
+        <div role="status" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', padding: '8px 10px', borderRadius: 10, background: 'var(--soft)', marginBottom: 10 }}>
+          <span className="w6">Previous scan · {i + 1} of {n} · not the current one</span>
+          <button type="button" className="pf-link w6" onClick={() => setOpenId(null)} style={{ background: 'none', border: 0, color: 'var(--green)', cursor: 'pointer', padding: 0 }}>Back to latest</button>
+        </div>)}
+      <div style={muted}>{isOld ? 'Scan of' : 'Latest scan'} · {fmtScanDate(shown.at)}, {fmtScanTime(shown.at)}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+        <span className="w8" style={{ fontSize: 26 }}>≈ {kg} kg</span><span style={{ color: 'var(--muted)' }}>± {weightMargin(kg)}</span>
+        <span className="pf-tag w6">Experimental</span></div>
+      {d && <div className={`pf-delta w6 ${d.withinMargin ? '' : d.kg >= 0 ? 'up' : 'down'}`} style={{ marginTop: 6 }}>
+        {d.kg >= 0 ? '+' : '−'}{Math.abs(d.kg)} kg vs previous scan{d.withinMargin ? ' · within margin' : ''}</div>}
+      {isOld && <div style={muted}>Today: ≈ {Math.round(latest.weightKg as number)} kg ± {weightMargin(latest.weightKg as number)}</div>}
+      <div style={{ marginTop: 8, fontSize: 13.5 }}>
+        {!data.hasLocation ? 'Set the farm location to see weather' : data.weatherFailed ? 'Weather unavailable right now' : wl ? `Weather at scan: ${wl}` : 'No weather data for this scan yet'}</div>
+      {shrunk(shown, prev) && <div style={{ color: 'var(--orange)', fontSize: 13, marginTop: 6 }}>Check this scan. It may have been taken in a different pose.</div>}
+      {n > 1 && <>
+        <div className="w6" style={{ ...muted, marginTop: 16, marginBottom: 4 }}>Previous scans</div>
+        {scans.slice(0, -1).reverse().map((x) => {
+          const line = weatherLine(data.weather[x.id]);
+          return (
+            <button type="button" key={x.id} onClick={() => setOpenId(x.id)} aria-pressed={x.id === shown.id}
+              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 10, padding: '9px 6px', border: 0, borderTop: '1px solid var(--line)', background: x.id === shown.id ? 'var(--sel)' : 'transparent', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: 'block' }}>{fmtScanDate(x.at)} · {fmtScanTime(x.at)}</span>
+                {line && <span style={{ ...muted, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{line}</span>}</span>
+              <span className="w6">{Math.round(x.weightKg as number)} kg</span>
+            </button>);
+        })}
+      </>}
     </div>
   );
 }
@@ -155,6 +215,8 @@ function Sheet({ a, herd }: { a: CloudAnimal; herd: CloudAnimal[] }) {
         <p>Experimental estimate, not validated against a scale</p></div>
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>3D scan</div>
       <Scan3D a={a} />
+      <div className="pf-sect w6" style={{ marginLeft: 2 }}>Scans</div>
+      <ScanHistoryPanel id={a.id} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Weight over time</div>
       <WeightHistory id={a.id} />
       <div className="pf-sect w6" style={{ marginLeft: 2 }}>Compared with the herd</div>
