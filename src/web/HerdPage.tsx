@@ -6,7 +6,7 @@ import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from
 import { CloudIcon, FemaleIcon, MaleIcon, PhoneIcon, SearchIcon } from './icons';
 import { useTheme } from '../lib/ThemeContext';
 import ScanViewer from './ScanViewer';
-import { fmtScanDate, fmtScanTime, shrunk, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
+import { fmtScanDate, fmtScanTime, growthSummary, measureDeltas, shrunk, weatherDiffers, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
 
 type Sort = 'name' | 'heavy' | 'light';
 const SORTS: { id: Sort; label: string }[] = [{ id: 'name', label: 'Name' }, { id: 'heavy', label: 'Heaviest' }, { id: 'light', label: 'Lightest' }];
@@ -113,6 +113,23 @@ function ScanHistoryPanel({ id }: { id: string }) {
       {isOld && <div style={muted}>Today: ≈ {Math.round(latest.weightKg as number)} kg ± {weightMargin(latest.weightKg as number)}</div>}
       <div style={{ marginTop: 8, fontSize: 13.5 }}>
         {!data.hasLocation ? 'Set the farm location to see weather' : data.weatherFailed ? 'Weather unavailable right now' : wl ? `Weather at scan: ${wl}` : 'No weather data for this scan yet'}</div>
+      {isOld && data.hasLocation && !data.weatherFailed && (() => {
+        const a = data.weather[shown.id], b = data.weather[latest.id];
+        const rows: [string, (x?: typeof a) => string][] = [
+          ['Temperature', (x) => (x?.tempC != null ? `${Math.round(x.tempC)} °C` : '—')],
+          ['Humidity', (x) => (x?.humidity != null ? `${Math.round(x.humidity)} %` : '—')],
+          ['THI', (x) => (x?.thi != null ? `${Math.round(x.thi)}${x.heatStress ? ' · heat stress' : ''}` : '—')],
+          ['Rain 24 h', (x) => (x?.rain24hMm != null ? `${x.rain24hMm} mm` : '—')]];
+        return (<>
+          <table className="pf-histtbl"><thead><tr><th /><th>Then</th><th>Latest</th></tr></thead>
+            <tbody>{rows.map(([l, f]) => <tr key={l}><td>{l}</td><td>{f(a)}</td><td>{f(b)}</td></tr>)}</tbody></table>
+          {weatherDiffers(a, b) && <div style={{ color: 'var(--orange)', fontSize: 13, marginTop: 4 }}>The weather was very different. Compare with care.</div>}
+        </>);
+      })()}
+      <table className="pf-histtbl"><thead><tr><th>Measurements</th><th>{isOld ? 'Then' : 'Now'}</th><th>{isOld ? 'Latest' : 'Since previous'}</th></tr></thead>
+        <tbody>{measureDeltas(shown, isOld ? latest : prev).map((m) => (
+          <tr key={m.label}><td>{m.label}</td><td>{m.now != null ? `${Math.round(m.now)} cm` : '—'}</td>
+            <td>{isOld ? (m.before != null ? `${Math.round(m.before)} cm` : '—') : m.diff != null ? `${m.diff >= 0 ? '+' : '−'}${Math.abs(m.diff)} cm` : '—'}</td></tr>))}</tbody></table>
       {shrunk(shown, prev) && <div style={{ color: 'var(--orange)', fontSize: 13, marginTop: 6 }}>Check this scan. It may have been taken in a different pose.</div>}
       {n > 1 && <>
         <div className="w6" style={{ ...muted, marginTop: 16, marginBottom: 4 }}>Previous scans</div>
@@ -126,6 +143,20 @@ function ScanHistoryPanel({ id }: { id: string }) {
               <span className="w6">{Math.round(x.weightKg as number)} kg</span>
             </button>);
         })}
+      </>}
+      {n > 1 && <>
+        <div className="w6" style={{ ...muted, marginTop: 16, marginBottom: 4 }}>Growth & weather</div>
+        <div style={{ fontSize: 14 }}>{growthSummary(scans[0], latest, n)}</div>
+        {data.hasLocation && data.intervals.length > 0 && (
+          <table className="pf-histtbl"><thead><tr><th>Between scans</th><th>Avg max</th><th>Heat days</th><th>Rain</th></tr></thead>
+            <tbody>{data.intervals.map((iv) => {
+              const a = scans.find((p) => p.id === iv.fromScanId), b = scans.find((p) => p.id === iv.toScanId);
+              if (!a || !b) return null;
+              const dm = (t: number) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              return <tr key={iv.fromScanId}><td>{dm(a.at)}–{dm(b.at)}</td><td>{iv.avgMaxTempC != null ? `${Math.round(iv.avgMaxTempC)} °C` : '—'}</td><td>{iv.heatDays ?? '—'}</td><td>{iv.rainMm != null ? `${Math.round(iv.rainMm)} mm` : '—'}</td></tr>;
+            })}</tbody></table>)}
+        <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'var(--soft)', fontSize: 13 }}>
+          <b className="w6">How sure is this?</b><br />Measurements are more stable than weight. Weight is an estimate of ± 10 % today; it is being calibrated with scale weights at farm visits.</div>
       </>}
     </div>
   );

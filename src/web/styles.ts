@@ -48,6 +48,7 @@ html, body { background: var(--ground); }
 .pf-sub { color: var(--muted); font-size: 14.5px; margin-top: 4px; }
 .pf-row { display: flex; gap: 20px; margin-top: 26px; }
 .pf-card { background: var(--card); border-radius: 20px; border: 1px solid var(--line); }
+.pf-histtbl { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; } .pf-histtbl th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 4px 4px 0; } .pf-histtbl td { padding: 5px 4px 5px 0; border-top: 1px solid var(--line); }
 .pf-hero { flex: 1.25; padding: 26px 28px; display: flex; align-items: center; justify-content: space-between; }
 .pf-k { font-size: 14px; color: var(--green); }
 .pf-big { font-size: 64px; letter-spacing: -2px; margin-top: 4px; line-height: 1.05; } .pf-big small { font-size: 26px; letter-spacing: 0; color: var(--ink2); margin-left: 6px; }
