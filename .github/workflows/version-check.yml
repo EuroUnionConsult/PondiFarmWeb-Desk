@@ -1,0 +1,42 @@
+# A web (computador + telemóvel) sai sempre com a mesma versão da app do iPhone.
+# Compara src/lib/version.ts, package.json, app.json e package-lock.json com a versão
+# da última release do PondiFarmApp (repositório público; sem segredos). Se ainda não
+# houver release, compara com a main.
+name: Version check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  version-sync:
+    name: Same version as PondiFarmApp
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node (LTS)
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Latest PondiFarmApp release
+        id: app
+        env:
+          # Token automático do próprio workflow (só leitura); o repositório é público.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --repo EuroUnionConsult/PondiFarmApp --json tagName -q .tagName 2>/dev/null || true)
+          echo "ref=${tag:-main}" >> "$GITHUB_OUTPUT"
+          echo "PondiFarmApp ref: ${tag:-main}"
+
+      # O script só usa módulos do Node: não precisa de npm ci.
+      - name: Compare versions
+        run: npm run version:check -- --ref=${{ steps.app.outputs.ref }}

@@ -4,6 +4,7 @@ import { RootNavigator } from '../navigation/AppNavigator';
 import DesktopShell from './DesktopShell';
 import { DesktopIcon, PhoneIcon } from './icons';
 import { saveDeviceMode, type DeviceMode } from './deviceMode';
+import { setReportPlatform } from '../lib/errorReport';
 
 const ICON = Asset.fromModule(require('../../assets/icon.png')).uri;
 const PHONE_W = 392, PHONE_H = 852, BEZEL = 14;
@@ -55,6 +56,7 @@ export default function DeviceStage({ initial }: { initial: DeviceMode }) {
     const step = (now: number) => { const u = cl((now - t0) / dur); setP(from + (target - from) * u); if (u < 1) raf.current = requestAnimationFrame(step); };
     raf.current = requestAnimationFrame(step);
     saveDeviceMode(target === 1 ? 'mobile' : 'desktop');
+    setReportPlatform(target === 1 ? 'web-mobile' : 'web-desktop');
   }, []);
   useEffect(() => () => cancelAnimationFrame(raf.current), []);
 

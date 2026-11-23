@@ -1,11 +1,13 @@
 {
   "name": "pondifarm-web-desk",
-  "version": "0.8.0",
+  "version": "0.10.1",
   "main": "index.ts",
   "scripts": {
     "start": "expo start --web",
     "build": "expo export --platform web --output-dir dist --clear",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "version:check": "node scripts/check-version-sync.mjs",
+    "version:sync": "node scripts/check-version-sync.mjs --fix"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

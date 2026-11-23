@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import WeatherIcon from '../components/WeatherIcon';
 import { useAuth } from '../lib/AuthContext';
-import { BAND_LABEL, KIND_LABEL, useWeather, type Weather } from '../lib/weather';
+import { BAND_LABEL, KIND_LABEL, forecastNotice, useWeather, type Weather } from '../lib/weather';
 import FarmLocationDialog from './FarmLocationDialog';
 
 /**
@@ -26,7 +26,8 @@ const Ic = ({ k }: { k: string }) => (
 
 export default function WeatherPage() {
   const { user } = useAuth();
-  const { weather: w, loading, error, markSeen } = useWeather();
+  const { weather: w, loading, error, updating, markSeen } = useWeather();
+  const notice = forecastNotice(w, error, updating);
   const [editing, setEditing] = useState(false);
   const leader = user?.role === 'leader';
   useEffect(() => { if (w?.alerts?.length) markSeen(); }, [w, markSeen]);
@@ -48,17 +49,40 @@ export default function WeatherPage() {
     );
   }
 
-  const cur = w.current!;
+  const top = (
+    <div className="pf-top">
+      <div><h1 className="w8">Weather</h1>
+        <div className="pf-sub">{w.location.label ?? 'Farm'} · {w.replay ? `replay of a real day (${w.replay}), ERA5 / Copernicus` : `ECMWF forecast${w.updatedAt && w.current ? `, updated ${hhmm(w.updatedAt)}` : ''}`}</div></div>
+      {leader && <div className="pf-actions"><button className="pf-btn l w7" onClick={() => setEditing(true)}>Change farm location</button></div>}
+    </div>
+  );
+  // O aviso fica no fluxo normal da página, por baixo do cabeçalho (antes tinha
+  // margem negativa e sobrepunha-se ao subtítulo).
+  const noticeEl = notice && (
+    <div className="pf-wx-notice" role="status" aria-live="polite">{updating && <span className="pf-locspin" aria-hidden />}{notice}</div>
+  );
+
+  // Sítio novo acabado de guardar: a previsão ainda vem a caminho (ou falhou).
+  if (!w.current) {
+    return (
+      <div className="pf-page">
+        {top}
+        {noticeEl}
+        {!updating && (
+          <div className="pf-card pf-wx-wait">{loading ? <><span className="pf-locspin" aria-hidden />Loading the forecast…</> : (error ?? 'No forecast yet.')}</div>
+        )}
+        {editing && <FarmLocationDialog onClose={() => setEditing(false)} />}
+      </div>
+    );
+  }
+
+  const cur = w.current;
   const peak = w.thiPeak ?? cur.thi;
   const pos = Math.max(0, Math.min(100, ((cur.thi - 60) / 30) * 100));
   return (
     <div className="pf-page">
-      <div className="pf-top">
-        <div><h1 className="w8">Weather</h1>
-          <div className="pf-sub">{w.location.label ?? 'Farm'} · {w.replay ? `replay of a real day (${w.replay}), ERA5 / Copernicus` : `ECMWF forecast${w.updatedAt ? `, updated ${hhmm(w.updatedAt)}` : ''}`}</div></div>
-        {leader && <div className="pf-actions"><button className="pf-btn l w7" onClick={() => setEditing(true)}>Change farm location</button></div>}
-      </div>
-      {error && <div className="pf-err" style={{ margin: '-8px 4px 14px' }}>Showing the last forecast saved. {error}</div>}
+      {top}
+      {noticeEl}
 
       <div className="pf-wx-grid">
         <div className="pf-card pf-wx-now pf-rise">
