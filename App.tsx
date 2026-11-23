@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
+import ServerWakeNotice from './src/components/ServerWakeNotice';
 
 // Barra de estado conforme o tema (o ecrã do scan põe a sua, clara, por cima).
 function ThemedStatusBar() {
@@ -23,6 +24,8 @@ export default function App() {
       <SafeAreaProvider>
         <ThemedStatusBar />
         <AppNavigator />
+        {/* «Connecting to the server…» enquanto a base serverless acorda. */}
+        <ServerWakeNotice />
       </SafeAreaProvider>
     </ThemeProvider>
   );

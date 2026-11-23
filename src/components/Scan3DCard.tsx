@@ -1,11 +1,14 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { Suspense, lazy, useMemo } from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { fetchScanMesh, type CloudAnimal } from '../lib/api';
-import ScanViewer from '../web/ScanViewer';
+
+// O three.js (~600 KB) só se descarrega quando há um modelo 3D para mostrar:
+// pedaço próprio do bundle (import dinâmico), fora do arranque da app.
+const ScanViewer = lazy(() => import('../web/ScanViewer'));
 
 /**
  * Versão web (modo telemóvel do site) do cartão do modelo 3D: o mesmo visualizador
@@ -27,7 +30,11 @@ export default function Scan3DCard({ animal }: { animal: CloudAnimal }) {
       </View>
     );
   }
-  return <ScanViewer load={load} dark={mode === 'dark'} />;
+  return (
+    <Suspense fallback={<View style={styles.loading}><ActivityIndicator color={ios.accent} /></View>}>
+      <ScanViewer load={load} dark={mode === 'dark'} />
+    </Suspense>
+  );
 }
 
 const makeStyles = (ios: Palette) => StyleSheet.create({
@@ -35,5 +42,6 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 16, borderRadius: 14,
     backgroundColor: ios.secondarySystemGroupedBackground,
   },
+  loading: { height: 260, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: ios.secondarySystemGroupedBackground },
   emptyText: { flex: 1, fontSize: 14, color: ios.secondaryLabel, lineHeight: 20 },
 });
