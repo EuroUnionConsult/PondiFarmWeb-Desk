@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './src/lib/AuthContext';
 import { RootNavigator } from './src/navigation/AppNavigator';
 import DesktopOrgGate from './src/web/DesktopOrgGate';
 import { AlertHost, installWebAlert } from './src/web/webAlert';
+import ServerWakeNotice from './src/components/ServerWakeNotice';
 import DesktopLogin from './src/web/DesktopLogin';
 import DeviceStage from './src/web/DeviceStage';
 import { loadDeviceMode, NARROW, type DeviceMode } from './src/web/deviceMode';
@@ -68,6 +69,8 @@ export default function App() {
             <WebRoot />
           </WeatherProvider>
           <AlertHost />
+          {/* «Connecting to the server…» enquanto a base serverless acorda (login, arranque, qualquer pedido lento). */}
+          <ServerWakeNotice />
         </AuthProvider>
       </SafeAreaProvider>
     </ThemeProvider>

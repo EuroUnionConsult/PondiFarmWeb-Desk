@@ -3,6 +3,7 @@ import WeatherIcon from '../components/WeatherIcon';
 import { useAuth } from '../lib/AuthContext';
 import { BAND_LABEL, KIND_LABEL, forecastNotice, useWeather, type Weather } from '../lib/weather';
 import FarmLocationDialog from './FarmLocationDialog';
+import { Skel, SkelChart, SkelRows } from './charts';
 
 /**
  * Tempo e bem-estar no computador: o tempo agora, o stress térmico (THI) e os avisos
@@ -24,6 +25,21 @@ const Ic = ({ k }: { k: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{ALERT_IC[k] ?? null}</svg>
 );
 
+/** Esqueleto da previsão (a forma da página a pulsar) enquanto a 1.ª chega. */
+function WeatherSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading the forecast">
+      <div className="pf-wx-grid">
+        <div className="pf-card pf-wx-now"><Skel w={44} h={13} /><Skel w={150} h={56} r={12} style={{ margin: '10px 0 8px' }} /><Skel w={180} h={14} /><Skel w={230} h={12} style={{ marginTop: 12 }} /></div>
+        <div className="pf-card pf-wx-thi"><Skel w={140} h={13} /><Skel w={80} h={44} r={10} style={{ margin: '10px 0 8px' }} /><Skel h={8} r={6} style={{ marginTop: 16 }} /><Skel w="90%" h={12} style={{ marginTop: 16 }} /></div>
+        <div className="pf-card pf-wx-alerts"><SkelRows n={3} right={false} /></div>
+      </div>
+      <div className="pf-sect w6">Next 24 hours</div>
+      <div className="pf-card pf-wx-chart"><SkelChart h={200} /></div>
+    </div>
+  );
+}
+
 export default function WeatherPage() {
   const { user } = useAuth();
   const { weather: w, loading, error, updating, markSeen } = useWeather();
@@ -32,7 +48,7 @@ export default function WeatherPage() {
   const leader = user?.role === 'leader';
   useEffect(() => { if (w?.alerts?.length) markSeen(); }, [w, markSeen]);
 
-  if (!w) return <div className="pf-page"><div className="pf-top"><div><h1 className="w8">Weather</h1><div className="pf-sub">{loading ? 'Loading the forecast…' : error ?? ''}</div></div></div></div>;
+  if (!w) return <div className="pf-page"><div className="pf-top"><div><h1 className="w8">Weather</h1><div className="pf-sub">{loading ? 'Loading the forecast…' : error ?? ''}</div></div></div>{loading && <WeatherSkeleton />}</div>;
 
   if (!w.location) {
     return (
@@ -68,9 +84,9 @@ export default function WeatherPage() {
       <div className="pf-page">
         {top}
         {noticeEl}
-        {!updating && (
-          <div className="pf-card pf-wx-wait">{loading ? <><span className="pf-locspin" aria-hidden />Loading the forecast…</> : (error ?? 'No forecast yet.')}</div>
-        )}
+        {loading || updating
+          ? <WeatherSkeleton />
+          : <div className="pf-card pf-wx-wait">{error ?? 'No forecast yet.'}</div>}
         {editing && <FarmLocationDialog onClose={() => setEditing(false)} />}
       </div>
     );

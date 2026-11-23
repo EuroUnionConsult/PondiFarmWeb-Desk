@@ -197,8 +197,8 @@ export default function AnalyticsScreen() {
           <View style={styles.card}>
             {(hasCloud
               ? [
-                  { k: 'Max weight',   v: `${cloudMaxKg} kg` },
-                  { k: 'Min weight',   v: `${cloudMinKg} kg` },
+                  { k: 'Max weight',   v: cloudWeights.length ? `${cloudMaxKg} kg` : '—' },
+                  { k: 'Min weight',   v: cloudWeights.length ? `${cloudMinKg} kg` : '—' },
                   { k: 'With weight',  v: `${cloudWeights.length} / ${cloudCount}` },
                   { k: 'Local scans',  v: `${totalScans}` },
                 ]

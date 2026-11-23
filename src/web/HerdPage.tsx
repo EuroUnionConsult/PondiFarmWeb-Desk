@@ -1,12 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { canEditSex, fetchAnimalScans, fetchScanHistory, type ScanHistoryData, fetchScanMesh, updateAnimalSex, type AnimalSex, type CloudAnimal, type MeshFormat, type ScanPoint } from '../lib/api';
 import { useAuth } from '../lib/AuthContext';
 import { fmtW, type Herd } from './herd';
 import { Pills, Skel, SkelRows, mean, pos, topBreeds, useCountUp, weights } from './charts';
 import { CloudIcon, FemaleIcon, MaleIcon, PhoneIcon, SearchIcon } from './icons';
 import { useTheme } from '../lib/ThemeContext';
-import ScanViewer from './ScanViewer';
+import type { MeshSource } from './ScanViewer';
 import { fmtScanDate, fmtScanTime, growthSummary, measureDeltas, shrunk, weatherDiffers, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
+
+// three.js só se descarrega ao abrir uma ficha com modelo 3D (pedaço próprio do bundle).
+const ScanViewer = lazy(() => import('./ScanViewer'));
 
 type Sort = 'name' | 'heavy' | 'light';
 const SORTS: { id: Sort; label: string }[] = [{ id: 'name', label: 'Name' }, { id: 'heavy', label: 'Heaviest' }, { id: 'light', label: 'Lightest' }];
@@ -166,7 +169,7 @@ function ScanHistoryPanel({ id }: { id: string }) {
  * De onde vem o modelo 3D do último scan: da API, quando o app já o enviou
  * (hasMesh). `pf-demo-mesh` (localStorage) serve só a pré-visualização local.
  */
-function meshSourceFor(a: CloudAnimal): (() => Promise<{ format: MeshFormat; data: ArrayBuffer }>) | null {
+function meshSourceFor(a: CloudAnimal): MeshSource | null {
   if (a.hasMesh && a.latestScanId) { const id = a.latestScanId; return () => fetchScanMesh(id); }
   let demo: string | null = null;
   try { demo = localStorage.getItem('pf-demo-mesh'); } catch { /* sem storage */ }
@@ -178,7 +181,7 @@ function meshSourceFor(a: CloudAnimal): (() => Promise<{ format: MeshFormat; dat
 function Scan3D({ a }: { a: CloudAnimal }) {
   const { mode } = useTheme();
   const load = useMemo(() => meshSourceFor(a), [a.id, a.hasMesh, a.latestScanId]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (load) return <ScanViewer load={load} dark={mode === 'dark'} />;
+  if (load) return <Suspense fallback={<Skel h={300} r={16} />}><ScanViewer load={load} dark={mode === 'dark'} /></Suspense>;
   return (
     <div className="pf-3d-empty"><PhoneIcon /><div><b className="w6">The 3D model is on the iPhone</b>
       <span>This scan has no 3D model in the cloud yet. It is sent automatically the next time the iPhone that captured it syncs (app version with 3D upload).</span></div></div>
