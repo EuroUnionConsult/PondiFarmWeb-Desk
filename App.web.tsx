@@ -13,9 +13,12 @@ import DesktopLogin from './src/web/DesktopLogin';
 import DeviceStage from './src/web/DeviceStage';
 import { loadDeviceMode, NARROW, type DeviceMode } from './src/web/deviceMode';
 import { CSS } from './src/web/styles';
+import { installGlobalErrorHandlers, setReportPlatform } from './src/lib/errorReport';
 
 // Na web, Alert.alert não fazia nada (react-native-web): passa a abrir um diálogo.
 installWebAlert();
+// Erros JavaScript não apanhados (window.onerror / unhandledrejection) vão para o log do servidor.
+installGlobalErrorHandlers();
 
 // Entrada da versão web (Expo escolhe este ficheiro na web; o iPhone continua a usar App.tsx).
 function useNarrow() {
@@ -31,6 +34,8 @@ function WebRoot() {
   const narrow = useNarrow();
   const [mode, setMode] = useState<DeviceMode | null>(null);
   useEffect(() => { loadDeviceMode(window.innerWidth).then(setMode); }, []);
+  // Os relatórios de erro dizem se foi a web de computador ou a de telemóvel.
+  useEffect(() => { setReportPlatform(narrow || mode === 'mobile' ? 'web-mobile' : 'web-desktop'); }, [narrow, mode]);
 
   if (loading || mode === null) {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ground)' as any }}><ActivityIndicator color="#2D7D46" /></View>;

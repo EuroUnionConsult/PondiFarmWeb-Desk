@@ -12,6 +12,7 @@ import WeatherPage from './WeatherPage';
 import WeatherIcon from '../components/WeatherIcon';
 import { useWeather } from '../lib/weather';
 import { useHerd } from './herd';
+import { setCurrentScreen } from '../lib/errorReport';
 import { ChartIcon, DesktopIcon, HerdIcon, HomeIcon } from './icons';
 
 const ICON = Asset.fromModule(require('../../assets/icon.png')).uri;
@@ -20,6 +21,8 @@ export type Page = 'home' | 'herd' | 'analytics' | 'weather' | 'profile';
 export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestMobile: () => void; shellRef?: React.Ref<HTMLDivElement> }) {
   const { user } = useAuth();
   const [page, setPage] = useState<Page>('home');
+  // Os relatórios de erro dizem em que página do painel aconteceram (ex.: 'desktop:weather').
+  useEffect(() => { setCurrentScreen(`desktop:${page}`); }, [page]);
   const [selected, setSelected] = useState<string | null>(null);
   const [members, setMembers] = useState<number | null>(null);
   const herd = useHerd();

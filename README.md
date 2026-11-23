@@ -23,6 +23,13 @@ Set `EXPO_PUBLIC_API_URL` (see `.env.example`) to point the build at a demo or l
 - `src/web/`: desktop shell, sign-in page, device switch and transition.
 - `modules/lidar-scanner/index.web.ts`: web stand-in for the native LiDAR module.
 
+## Version (same as the iPhone app)
+
+The web ships with the same version as PondiFarmApp (`mobile/src/lib/version.ts`).
+`npm run version:check` fails if `src/lib/version.ts`, `package.json`, `app.json` or
+`package-lock.json` differ from it; `npm run version:sync` writes it into all four. The
+script reads `../PondiFarmApp` when it exists, otherwise GitHub (`--ref=<branch|tag>`).
+
 ## License
 
 Proprietary. The source is public for transparency only; copying, modifying, redistributing or using it, including the weight model, is not allowed without written permission from Euro Union Consult. See [LICENSE](LICENSE).
