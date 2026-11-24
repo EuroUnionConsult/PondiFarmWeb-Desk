@@ -9,6 +9,7 @@ import ProfilePage from './ProfilePage';
 import HomePage from './HomePage';
 import HerdPage from './HerdPage';
 import WeatherPage from './WeatherPage';
+import WhatsNewPage from './WhatsNewPage';
 import WeatherIcon from '../components/WeatherIcon';
 import { useWeather } from '../lib/weather';
 import { useHerd } from './herd';
@@ -16,7 +17,7 @@ import { setCurrentScreen } from '../lib/errorReport';
 import { ChartIcon, DesktopIcon, HerdIcon, HomeIcon } from './icons';
 
 const ICON = Asset.fromModule(require('../../assets/icon.png')).uri;
-export type Page = 'home' | 'herd' | 'analytics' | 'weather' | 'profile';
+export type Page = 'home' | 'herd' | 'analytics' | 'weather' | 'profile' | 'whatsnew';
 
 export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestMobile: () => void; shellRef?: React.Ref<HTMLDivElement> }) {
   const { user } = useAuth();
@@ -72,7 +73,8 @@ export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestM
           {page === 'herd' && <HerdPage herd={herd} selected={selected} setSelected={setSelected} />}
           {page === 'analytics' && <AnalyticsPage herd={herd} openAnimal={openAnimal} />}
           {page === 'weather' && <WeatherPage />}
-          {page === 'profile' && <ProfilePage />}
+          {page === 'profile' && <ProfilePage goWhatsNew={() => setPage('whatsnew')} />}
+          {page === 'whatsnew' && <WhatsNewPage onBack={() => setPage('profile')} />}
         </div>
       </main>
     </div>

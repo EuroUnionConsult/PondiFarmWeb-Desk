@@ -30,6 +30,13 @@ The web ships with the same version as PondiFarmApp (`mobile/src/lib/version.ts`
 `package-lock.json` differ from it; `npm run version:sync` writes it into all four. The
 script reads `../PondiFarmApp` when it exists, otherwise GitHub (`--ref=<branch|tag>`).
 
+## What's new (same list as the iPhone app)
+
+The «What's new» screen (Profile → What's new on desktop, Settings → What's new on a phone)
+reads `src/lib/whatsNew.ts`, which must stay identical to `mobile/src/lib/whatsNew.ts` in
+PondiFarmApp. Each release must add its entries there (plain English, one line per change);
+release-please does not. `npm run whatsnew:check` fails if `APP_VERSION` has no entry.
+
 ## License
 
 Proprietary. The source is public for transparency only; copying, modifying, redistributing or using it, including the weight model, is not allowed without written permission from Euro Union Consult. See [LICENSE](LICENSE).

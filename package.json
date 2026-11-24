@@ -7,7 +7,8 @@
     "build": "expo export --platform web --output-dir dist --clear",
     "typecheck": "tsc --noEmit",
     "version:check": "node scripts/check-version-sync.mjs",
-    "version:sync": "node scripts/check-version-sync.mjs --fix"
+    "version:sync": "node scripts/check-version-sync.mjs --fix",
+    "whatsnew:check": "node scripts/check-whats-new.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
