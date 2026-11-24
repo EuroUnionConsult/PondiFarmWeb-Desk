@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { APP_VERSION } from '../lib/version';
-import { AREAS, byArea, markWhatsNewSeen, whatsNewFor, type WhatsNewArea } from '../lib/whatsNew';
+import {
+  AREAS, STATUS_LABEL, byArea, hasWhatsNewFor, markWhatsNewSeen, upcomingSorted, whatsNewFor, type WhatsNewArea,
+} from '../lib/whatsNew';
 import { HerdIcon } from './icons';
 
 // «What's new» no computador — conceito C «Árvore por área» (aprovado a 23/11/2026):
@@ -16,6 +18,9 @@ const ICONS: Record<WhatsNewArea, React.FC> = {
 
 export default function WhatsNewPage({ onBack }: { onBack?: () => void }) {
   const [only, setOnly] = useState(false);
+  // «Released» (o que já saiu) | «Coming next» (em curso / planeado).
+  const [next, setNext] = useState(false);
+  const upcoming = useMemo(() => upcomingSorted(), []);
   useEffect(() => { void markWhatsNewSeen(); }, []);
   const items = useMemo(() => whatsNewFor(APP_VERSION, only), [only]);
   return (
@@ -23,11 +28,32 @@ export default function WhatsNewPage({ onBack }: { onBack?: () => void }) {
       {onBack && <button className="pf-link w6 pf-wn-back" onClick={onBack}>‹ Profile</button>}
       <div className="pf-top">
         <div><h1 className="w8">What's new</h1><div className="pf-sub">You have version {APP_VERSION}</div></div>
-        <div className="pf-wn-seg" role="radiogroup" aria-label="Versions shown">
-          <button role="radio" aria-checked={!only} className={!only ? 'on w6' : 'w6'} onClick={() => setOnly(false)}>All versions</button>
-          <button role="radio" aria-checked={only} className={only ? 'on w6' : 'w6'} onClick={() => setOnly(true)}>Only {APP_VERSION}</button>
+        <div className="pf-wn-segs">
+          <div className="pf-wn-seg" role="radiogroup" aria-label="Released or coming next">
+            <button role="radio" aria-checked={!next} className={!next ? 'on w6' : 'w6'} onClick={() => setNext(false)}>Released</button>
+            <button role="radio" aria-checked={next} className={next ? 'on w6' : 'w6'} onClick={() => setNext(true)}>Coming next</button>
+          </div>
+          {!next && <div className="pf-wn-seg" role="radiogroup" aria-label="Versions shown">
+            <button role="radio" aria-checked={!only} className={!only ? 'on w6' : 'w6'} onClick={() => setOnly(false)}>All versions</button>
+            <button role="radio" aria-checked={only} className={only ? 'on w6' : 'w6'} onClick={() => setOnly(true)}>Only {APP_VERSION}</button>
+          </div>}
         </div>
       </div>
+      {next ? <>
+        <p className="pf-sub pf-wn-intro">What we are working on now, and what comes after it.</p>
+        <div className="pf-wn-next">
+          {upcoming.map((u) => {
+            const Icon = ICONS[u.area];
+            return (
+              <section key={u.title} className="pf-card pf-wn-up" aria-label={u.title}>
+                <h2 className="w7"><span className="ic"><Icon /></span><span>{u.title}<small>{AREAS.find((a) => a.key === u.area)?.label}</small></span></h2>
+                <span className={`pf-wn-status w7 ${u.status}`}>{STATUS_LABEL[u.status]}</span>
+                <p className="tx">{u.text}</p>
+              </section>
+            );
+          })}
+        </div>
+      </> : <>
       <div className="pf-wn-grid">
         {AREAS.map((a) => {
           const list = byArea(items, a.key);
@@ -48,7 +74,8 @@ export default function WhatsNewPage({ onBack }: { onBack?: () => void }) {
           );
         })}
       </div>
-      <p className="pf-foot pf-wn-legend"><span className="sw" aria-hidden="true" />Green = new in your version</p>
+      {hasWhatsNewFor(APP_VERSION) && <p className="pf-foot pf-wn-legend"><span className="sw" aria-hidden="true" />Green = new in your version</p>}
+      </>}
     </div>
   );
 }

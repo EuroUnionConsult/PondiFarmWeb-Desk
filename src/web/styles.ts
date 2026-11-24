@@ -446,5 +446,16 @@ html, body { background: var(--ground); }
 .pf-wn-badge.new, :root[data-theme="dark"] .pf-wn-badge.new { background: #2D7D46; color: #FFFFFF; }
 .pf-wn-empty { margin: 0 0 0 4px; font-size: 13.5px; color: var(--muted); }
 .pf-wn-legend { display: flex; align-items: center; gap: 8px; } .pf-wn-legend .sw { width: 10px; height: 10px; border-radius: 3px; background: #2D7D46; }
+.pf-wn-segs { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.pf-wn-intro { margin: 20px 0 0; }
+.pf-wn-next { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; align-items: start; }
+.pf-wn-up { padding: 18px 18px 20px; min-width: 0; }
+.pf-wn-up h2 { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; margin: 0; color: var(--label); line-height: 1.3; }
+.pf-wn-up h2 small { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--muted); }
+.pf-wn-up h2 .ic { flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px; background: var(--greenL); color: var(--green); display: flex; align-items: center; justify-content: center; } .pf-wn-up h2 .ic svg { width: 18px; }
+.pf-wn-up .tx { margin: 10px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--label); overflow-wrap: anywhere; }
+.pf-wn-status { display: inline-block; margin-top: 12px; font-size: 12px; border-radius: 7px; padding: 3px 8px; }
+.pf-wn-status.in-progress { background: #FBEBDD; color: #9C4C16; }
+.pf-wn-status.planned { background: #E3EBF3; color: #1B3A57; }
 .pf-newdot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
 `;
